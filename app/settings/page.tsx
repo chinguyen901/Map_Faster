@@ -1,8 +1,8 @@
 "use client";
 import { useState } from "react";
-import { Trash2, Download, Info, Shield } from "lucide-react";
+import { Trash2, Download, Info, Shield, LogOut } from "lucide-react";
 import AppShell, { useTx } from "@/components/AppShell";
-import { saveTransactions } from "@/lib/storage";
+import { logout } from "@/lib/api";
 import { formatVND } from "@/lib/formatters";
 import { calcMonthSummary, getLast6Months } from "@/lib/calculations";
 
@@ -25,8 +25,8 @@ function SettingsContent() {
   }
 
   function handleClear() {
-    saveTransactions([]);
-    window.location.reload();
+    // No longer uses localStorage — deletion is handled per-transaction
+    alert("Để xoá dữ liệu, hãy xoá từng giao dịch trong trang Giao dịch.");
   }
 
   return (
@@ -106,8 +106,17 @@ function SettingsContent() {
           )}
         </div>
 
-        <p className="text-center text-xs text-gray-400 pb-2">
-          Thu Chi Tiết Kiệm v1.0 · Dữ liệu lưu trên thiết bị
+        {/* Logout */}
+        <button
+          onClick={() => logout()}
+          className="w-full flex items-center gap-3 py-3.5 px-4 bg-gray-50 rounded-2xl active:bg-gray-100 transition-colors"
+        >
+          <LogOut size={18} className="text-gray-500" />
+          <span className="text-sm font-semibold text-gray-700">Đăng xuất</span>
+        </button>
+
+        <p className="text-center text-xs text-gray-400 pb-2 mt-2">
+          Thu Chi Tiết Kiệm v2.0 · Dữ liệu lưu trên cloud
         </p>
       </div>
     </div>
