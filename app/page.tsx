@@ -6,6 +6,7 @@ import {
 } from "recharts";
 import AppShell, { useTx } from "@/components/AppShell";
 import TransactionItem from "@/components/TransactionItem";
+import LoanSummaryWidget from "@/components/LoanSummaryWidget";
 import { calcMonthSummary, calcWeeklyData } from "@/lib/calculations";
 import { formatVND, formatVNDShort, formatMonth, getCurrentMonth } from "@/lib/formatters";
 
@@ -109,6 +110,9 @@ function HomeContent() {
             </BarChart>
           </ResponsiveContainer>
         </div>
+
+        {/* Loan summary widget */}
+        <LoanSummaryWidget />
 
         {/* Summary message */}
         <div className={`rounded-2xl p-4 flex items-center gap-3 ${

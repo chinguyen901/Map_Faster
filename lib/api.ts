@@ -1,5 +1,5 @@
 "use client";
-import { Transaction } from "@/types";
+import { Transaction, Loan } from "@/types";
 
 export async function fetchTransactions(month?: string): Promise<Transaction[]> {
   const url = month ? `/api/transactions?month=${month}` : "/api/transactions";
@@ -85,4 +85,71 @@ export async function deleteTransactionById(id: string): Promise<boolean> {
 export async function logout(): Promise<void> {
   await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
   window.location.href = "/login";
+}
+
+function normalizeLoan(r: Record<string, unknown>): Loan {
+  return {
+    id: r.id as string,
+    name: r.name as string,
+    lenderType: r.lenderType as Loan["lenderType"],
+    principal: Number(r.principal),
+    monthlyPayment: Number(r.monthlyPayment),
+    totalMonths: Number(r.totalMonths),
+    monthsPaid: Number(r.monthsPaid),
+    startMonth: r.startMonth as string,
+    dueDay: Number(r.dueDay),
+    note: (r.note as string) ?? "",
+    createdAt: r.createdAt as string,
+  };
+}
+
+export async function fetchLoans(): Promise<Loan[]> {
+  const res = await fetch("/api/loans", { credentials: "include" });
+  if (res.status === 401) { window.location.href = "/login"; return []; }
+  if (!res.ok) return [];
+  const rows = await res.json();
+  return rows.map(normalizeLoan);
+}
+
+export async function createLoan(data: Omit<Loan, "id" | "createdAt">): Promise<Loan | null> {
+  const res = await fetch("/api/loans", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(data),
+  });
+  if (res.status === 401) { window.location.href = "/login"; return null; }
+  if (!res.ok) return null;
+  return normalizeLoan(await res.json());
+}
+
+export async function updateLoan(id: string, data: Omit<Loan, "id" | "createdAt">): Promise<Loan | null> {
+  const res = await fetch(`/api/loans/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(data),
+  });
+  if (res.status === 401) { window.location.href = "/login"; return null; }
+  if (!res.ok) return null;
+  return normalizeLoan(await res.json());
+}
+
+export async function deleteLoanById(id: string): Promise<boolean> {
+  const res = await fetch(`/api/loans/${id}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (res.status === 401) { window.location.href = "/login"; return false; }
+  return res.ok;
+}
+
+export async function confirmLoanPayment(id: string): Promise<Loan | null> {
+  const res = await fetch(`/api/loans/${id}/pay`, {
+    method: "POST",
+    credentials: "include",
+  });
+  if (res.status === 401) { window.location.href = "/login"; return null; }
+  if (!res.ok) return null;
+  return normalizeLoan(await res.json());
 }

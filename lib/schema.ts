@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, boolean, timestamp, bigint, text, date } from "drizzle-orm/pg-core";
+import { pgTable, uuid, varchar, boolean, timestamp, bigint, text, date, integer } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -33,8 +33,27 @@ export const transactions = pgTable("transactions", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const loans = pgTable("loans", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  name: varchar("name", { length: 100 }).notNull(),
+  lenderType: varchar("lender_type", { length: 30 }).notNull(),
+  principal: bigint("principal", { mode: "number" }).notNull(),
+  monthlyPayment: bigint("monthly_payment", { mode: "number" }).notNull(),
+  totalMonths: integer("total_months").notNull(),
+  monthsPaid: integer("months_paid").default(0).notNull(),
+  startMonth: varchar("start_month", { length: 7 }).notNull(),
+  dueDay: integer("due_day").notNull(),
+  note: text("note").default("").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type OtpCode = typeof otpCodes.$inferSelect;
 export type Transaction = typeof transactions.$inferSelect;
 export type NewTransaction = typeof transactions.$inferInsert;
+export type Loan = typeof loans.$inferSelect;
+export type NewLoan = typeof loans.$inferInsert;
