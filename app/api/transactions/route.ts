@@ -39,14 +39,23 @@ export async function POST(req: NextRequest) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Chưa đăng nhập" }, { status: 401 });
 
-  const { type, category, amount, note, date } = await req.json();
+  const { type, category, amount, note, date, isRecurring, recurringDay } = await req.json();
   if (!type || !category || !amount || !date) {
     return NextResponse.json({ error: "Thiếu thông tin giao dịch" }, { status: 400 });
   }
 
   const inserted = await db
     .insert(transactions)
-    .values({ userId: user.userId, type, category, amount: Number(amount), note: note ?? "", date })
+    .values({
+      userId: user.userId,
+      type,
+      category,
+      amount: Number(amount),
+      note: note ?? "",
+      date,
+      isRecurring: isRecurring === true,
+      recurringDay: isRecurring && recurringDay ? Number(recurringDay) : null,
+    })
     .returning();
 
   return NextResponse.json(inserted[0], { status: 201 });

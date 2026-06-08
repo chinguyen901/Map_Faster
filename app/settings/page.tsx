@@ -15,12 +15,20 @@ function SettingsContent() {
   const currentMonthSummary = calcMonthSummary(transactions, last6[5]);
 
   function handleExport() {
-    const data = JSON.stringify(transactions, null, 2);
-    const blob = new Blob([data], { type: "application/json" });
+    const header = "Ngày,Loại,Danh mục,Số tiền (VND),Ghi chú";
+    const rows = [...transactions]
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .map((t) => {
+        const type = t.type === "income" ? "Thu" : "Chi";
+        const note = t.note.replace(/"/g, '""');
+        return `${t.date},${type},${t.category},${t.amount},"${note}"`;
+      });
+    const csv = [header, ...rows].join("\n");
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `thu-chi-${new Date().toISOString().split("T")[0]}.json`;
+    a.download = `thu-chi-${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -94,7 +102,7 @@ function SettingsContent() {
             className="w-full flex items-center gap-3 py-3.5 px-4 bg-[#F0F8FF] rounded-2xl active:bg-blue-50 transition-colors"
           >
             <Download size={18} className="text-[#1E90FF]" />
-            <span className="text-sm font-semibold text-[#1A1A2E]">Xuất dữ liệu (JSON)</span>
+            <span className="text-sm font-semibold text-[#1A1A2E]">Xuất dữ liệu (CSV)</span>
           </button>
 
           {!showConfirm ? (

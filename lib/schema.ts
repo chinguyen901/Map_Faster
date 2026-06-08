@@ -30,6 +30,8 @@ export const transactions = pgTable("transactions", {
   amount: bigint("amount", { mode: "number" }).notNull(),
   note: text("note").default("").notNull(),
   date: date("date").notNull(),
+  isRecurring: boolean("is_recurring").default(false).notNull(),
+  recurringDay: integer("recurring_day"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

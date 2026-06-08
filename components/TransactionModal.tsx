@@ -7,7 +7,7 @@ import { getTodayISO } from "@/lib/formatters";
 interface Props {
   open: boolean;
   onClose: () => void;
-  onSave: (data: { type: TransactionType; category: string; amount: number; note: string; date: string }) => void;
+  onSave: (data: { type: TransactionType; category: string; amount: number; note: string; date: string; isRecurring: boolean; recurringDay: number | null }) => void;
   editingTransaction?: Transaction | null;
 }
 
@@ -17,6 +17,8 @@ export default function TransactionModal({ open, onClose, onSave, editingTransac
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [date, setDate] = useState(getTodayISO());
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurringDay, setRecurringDay] = useState<number>(1);
 
   const isEditing = !!editingTransaction;
   const categories = type === "expense" ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
@@ -29,6 +31,8 @@ export default function TransactionModal({ open, onClose, onSave, editingTransac
       setAmount(editingTransaction.amount.toLocaleString("vi-VN"));
       setNote(editingTransaction.note);
       setDate(editingTransaction.date);
+      setIsRecurring(editingTransaction.isRecurring);
+      setRecurringDay(editingTransaction.recurringDay ?? 1);
     } else {
       resetForm();
     }
@@ -38,7 +42,11 @@ export default function TransactionModal({ open, onClose, onSave, editingTransac
     e.preventDefault();
     const parsedAmount = parseInt(amount.replace(/\D/g, ""), 10);
     if (!parsedAmount || parsedAmount <= 0 || !category) return;
-    onSave({ type, category, amount: parsedAmount, note, date });
+    onSave({
+      type, category, amount: parsedAmount, note, date,
+      isRecurring,
+      recurringDay: isRecurring ? recurringDay : null,
+    });
     resetForm();
     onClose();
   }
@@ -49,6 +57,8 @@ export default function TransactionModal({ open, onClose, onSave, editingTransac
     setAmount("");
     setNote("");
     setDate(getTodayISO());
+    setIsRecurring(false);
+    setRecurringDay(1);
   }
 
   function handleAmountChange(val: string) {
@@ -169,6 +179,42 @@ export default function TransactionModal({ open, onClose, onSave, editingTransac
                 className="mt-1 w-full bg-gray-50 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-200"
               />
             </div>
+
+            {/* Recurring toggle */}
+            <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3">
+              <div>
+                <p className="text-sm font-semibold text-[#1A1A2E]">Lặp lại hàng tháng</p>
+                <p className="text-xs text-gray-400 mt-0.5">Tự động nhắc vào ngày cố định</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsRecurring((v) => !v)}
+                className={`relative w-12 h-6 rounded-full transition-colors ${
+                  isRecurring ? "bg-[#1E90FF]" : "bg-gray-300"
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                    isRecurring ? "translate-x-6" : ""
+                  }`}
+                />
+              </button>
+            </div>
+
+            {isRecurring && (
+              <div className="flex items-center gap-3 bg-blue-50 rounded-xl px-4 py-3">
+                <span className="text-sm text-gray-600">Ngày</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={31}
+                  value={recurringDay}
+                  onChange={(e) => setRecurringDay(Math.min(31, Math.max(1, parseInt(e.target.value) || 1)))}
+                  className="w-16 bg-white rounded-lg px-3 py-1.5 text-sm font-bold text-center outline-none focus:ring-2 focus:ring-blue-200"
+                />
+                <span className="text-sm text-gray-600">hằng tháng</span>
+              </div>
+            )}
 
             <button
               type="submit"

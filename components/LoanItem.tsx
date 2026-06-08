@@ -1,7 +1,8 @@
 "use client";
-import { Trash2, Pencil, CheckCircle2 } from "lucide-react";
+import { useState } from "react";
+import { Trash2, Pencil, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
 import { Loan, LENDER_TYPES } from "@/types";
-import { calcLoanStatus, calcAnnualRate } from "@/lib/calculations";
+import { calcLoanStatus, calcAnnualRate, calcEarlyPayoff } from "@/lib/calculations";
 import { formatVND, formatMonth } from "@/lib/formatters";
 
 interface Props {
@@ -12,6 +13,9 @@ interface Props {
 }
 
 export default function LoanItem({ loan, onEdit, onDelete, onConfirmPayment }: Props) {
+  const [showWhatIf, setShowWhatIf] = useState(false);
+  const [extraRaw, setExtraRaw] = useState("");
+
   const lenderType = LENDER_TYPES.find((lt) => lt.value === loan.lenderType);
   const monthsLeft = loan.totalMonths - loan.monthsPaid;
   const remaining = monthsLeft * loan.monthlyPayment;
@@ -114,6 +118,59 @@ export default function LoanItem({ loan, onEdit, onDelete, onConfirmPayment }: P
           <CheckCircle2 size={16} />
           Xác nhận đã trả {dueDateText}
         </button>
+      )}
+
+      {/* What-if calculator */}
+      {status !== "paid_off" && (
+        <div className="border-t border-gray-100 pt-2">
+          <button
+            onClick={() => setShowWhatIf((v) => !v)}
+            className="w-full flex items-center justify-between py-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <span className="font-semibold">💡 Nếu trả thêm mỗi tháng?</span>
+            {showWhatIf ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+
+          {showWhatIf && (() => {
+            const extra = parseInt(extraRaw.replace(/\D/g, ""), 10) || 0;
+            const result = extra > 0 ? calcEarlyPayoff(loan, extra) : null;
+            return (
+              <div className="mt-2 space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500 whitespace-nowrap">Trả thêm</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="ví dụ: 500.000"
+                    value={extraRaw}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, "");
+                      const num = parseInt(digits, 10);
+                      setExtraRaw(isNaN(num) ? "" : num.toLocaleString("vi-VN"));
+                    }}
+                    className="flex-1 bg-blue-50 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-200 text-right font-semibold text-[#1A1A2E]"
+                  />
+                  <span className="text-xs text-gray-500">đ/tháng</span>
+                </div>
+                {result && (
+                  <div className="bg-green-50 rounded-xl px-3 py-2.5 space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Hết nợ sớm</span>
+                      <span className="font-bold text-[#4CAF50]">{result.monthsSaved} tháng</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Còn {result.newMonthsLeft} tháng nữa</span>
+                      <span className="font-bold text-[#4CAF50]">Tiết kiệm {formatVND(result.interestSaved)}</span>
+                    </div>
+                  </div>
+                )}
+                {extra > 0 && !result && (
+                  <p className="text-xs text-gray-400 text-center">Không tính được (khoản vay 0% lãi)</p>
+                )}
+              </div>
+            );
+          })()}
+        </div>
       )}
     </div>
   );

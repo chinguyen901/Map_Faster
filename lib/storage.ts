@@ -57,6 +57,8 @@ function seedData(): Transaction[] {
     amount,
     note,
     date: dateStr,
+    isRecurring: false,
+    recurringDay: null,
     createdAt: new Date().toISOString(),
   });
 

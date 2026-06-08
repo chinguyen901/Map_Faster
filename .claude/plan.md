@@ -77,30 +77,29 @@
 - **File:** `lib/calculations.ts` — thêm `calcCategoryInsights(transactions, month)`
 - **UI:** InsightBadge component trong `/charts`
 
-### T1-4 · Loan what-if calculator
-- Extend trang `/loans`: input "Trả thêm X đồng/tháng"
-- Tính toán realtime: hết nợ sớm Y tháng, tiết kiệm Z đồng lãi
-- **File:** `lib/calculations.ts` — thêm `calcEarlyPayoff(loan, extraPayment)`
-- **UI:** WhatIfPanel trong `LoanItem` hoặc modal riêng
+### ✅ T1-4 · Loan what-if calculator
+- `calcEarlyPayoff(loan, extraPayment)` trong `lib/calculations.ts`
+- WhatIf panel collapsible trong mỗi LoanItem: input "trả thêm X đ/tháng" → hiện hết nợ sớm N tháng + tiết kiệm Z đ lãi
 
-### T1-5 · Search & filter giao dịch
-- Thanh search trên trang `/transactions`
-- Filter: theo danh mục, theo loại (thu/chi), theo khoảng tiền
-- Client-side filter trên `transactions` đã load trong TxContext — không cần API mới
-- **File:** `app/transactions/page.tsx` + `components/TransactionFilter.tsx`
+### ✅ T1-5 · Search & filter giao dịch
+- Thanh search + filter tabs (Tất cả / Thu / Chi) trong `app/transactions/page.tsx`
+- Client-side filter trên TxContext, không cần API mới
 
-### T1-6 · Export CSV
-- Nút "Xuất dữ liệu" trong Settings hoặc `/transactions`
-- Export tất cả giao dịch của user theo tháng được chọn
-- Format: `ngày, loại, danh mục, số tiền, ghi chú`
-- **API:** `GET /api/transactions/export?month=YYYY-MM` → trả file CSV
-- **Thông điệp marketing:** "Dữ liệu của bạn, mãi mãi export được"
+### ✅ T1-6 · Export CSV
+- Nút "Xuất dữ liệu (CSV)" trong Settings
+- Client-side: tạo file CSV format `Ngày,Loại,Danh mục,Số tiền,Ghi chú` với BOM UTF-8
+- Không cần API route mới (dùng transactions đã load trong TxContext)
 
-### T1-7 · Recurring transactions (giao dịch lặp lại)
-- Khi thêm giao dịch: toggle "Lặp lại hàng tháng"
-- Tự động tạo giao dịch vào ngày đó mỗi tháng (hoặc nhắc user confirm)
-- **DB:** thêm `is_recurring boolean`, `recurring_day int` vào `transactions`
-- **Logic:** cron job hoặc check khi user mở app lần đầu trong tháng
+### ✅ T1-7 · Recurring transactions (giao dịch lặp lại)
+- Toggle "Lặp lại hàng tháng" + input ngày trong TransactionModal
+- DB: thêm `is_recurring boolean DEFAULT false`, `recurring_day integer` vào bảng `transactions`
+- ⚠️ **CẦN CHẠY SQL MIGRATION TRÊN NEON:**
+  ```sql
+  ALTER TABLE "transactions" ADD COLUMN IF NOT EXISTS "is_recurring" boolean DEFAULT false NOT NULL;
+  ALTER TABLE "transactions" ADD COLUMN IF NOT EXISTS "recurring_day" integer;
+  ```
+- Auto-detect khi app mount: tìm recurring templates chưa có bản tháng này → tự tạo + toast thông báo
+- Xử lý tháng ngắn (tháng 2, v.v.): dùng ngày cuối tháng nếu recurring_day > số ngày trong tháng
 
 ---
 

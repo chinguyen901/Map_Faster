@@ -11,7 +11,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { id } = await params;
   const body = await req.json();
-  const { type, category, amount, note, date } = body;
+  const { type, category, amount, note, date, isRecurring, recurringDay } = body;
 
   if (!type || !category || !amount || !date) {
     return NextResponse.json({ error: "Thiếu thông tin bắt buộc" }, { status: 400 });
@@ -19,7 +19,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const updated = await db
     .update(transactions)
-    .set({ type, category, amount, note: note ?? "", date })
+    .set({
+      type,
+      category,
+      amount,
+      note: note ?? "",
+      date,
+      isRecurring: isRecurring === true,
+      recurringDay: isRecurring && recurringDay ? Number(recurringDay) : null,
+    })
     .where(and(eq(transactions.id, id), eq(transactions.userId, user.userId)))
     .returning();
 

@@ -7,6 +7,8 @@ export interface Transaction {
   amount: number;
   note: string;
   date: string; // ISO date string YYYY-MM-DD
+  isRecurring: boolean;
+  recurringDay: number | null;
   createdAt: string;
 }
 

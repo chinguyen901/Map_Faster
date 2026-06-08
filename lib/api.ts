@@ -14,7 +14,9 @@ export async function fetchTransactions(month?: string): Promise<Transaction[]> 
     category: r.category as string,
     amount: Number(r.amount),
     note: (r.note as string) ?? "",
-    date: (r.date as string).slice(0, 10), // date field may include time
+    date: (r.date as string).slice(0, 10),
+    isRecurring: (r.isRecurring as boolean) ?? false,
+    recurringDay: r.recurringDay != null ? Number(r.recurringDay) : null,
     createdAt: r.createdAt as string,
   }));
 }
@@ -25,6 +27,8 @@ export async function createTransaction(data: {
   amount: number;
   note: string;
   date: string;
+  isRecurring?: boolean;
+  recurringDay?: number | null;
 }): Promise<Transaction | null> {
   const res = await fetch("/api/transactions", {
     method: "POST",
@@ -42,6 +46,8 @@ export async function createTransaction(data: {
     amount: Number(r.amount),
     note: r.note ?? "",
     date: r.date.slice(0, 10),
+    isRecurring: r.isRecurring ?? false,
+    recurringDay: r.recurringDay != null ? Number(r.recurringDay) : null,
     createdAt: r.createdAt,
   };
 }
@@ -52,6 +58,8 @@ export async function updateTransaction(id: string, data: {
   amount: number;
   note: string;
   date: string;
+  isRecurring?: boolean;
+  recurringDay?: number | null;
 }): Promise<Transaction | null> {
   const res = await fetch(`/api/transactions/${id}`, {
     method: "PATCH",
@@ -69,6 +77,8 @@ export async function updateTransaction(id: string, data: {
     amount: Number(r.amount),
     note: r.note ?? "",
     date: r.date.slice(0, 10),
+    isRecurring: r.isRecurring ?? false,
+    recurringDay: r.recurringDay != null ? Number(r.recurringDay) : null,
     createdAt: r.createdAt,
   };
 }

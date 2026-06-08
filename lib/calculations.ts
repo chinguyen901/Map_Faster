@@ -183,3 +183,46 @@ export function calcTotalRemainingDebt(loans: Loan[]): number {
     0
   );
 }
+
+export interface EarlyPayoffResult {
+  newMonthsLeft: number;
+  monthsSaved: number;
+  interestSaved: number;
+}
+
+export function calcEarlyPayoff(loan: Loan, extraPayment: number): EarlyPayoffResult | null {
+  if (extraPayment <= 0 || loan.monthsPaid >= loan.totalMonths) return null;
+
+  const monthsLeft = loan.totalMonths - loan.monthsPaid;
+  const r = solveMonthlyRate(loan.principal, loan.monthlyPayment, loan.totalMonths);
+  const remainingBalance = calcRemainingBalance(
+    loan.principal, loan.monthlyPayment, loan.totalMonths, loan.monthsPaid
+  );
+
+  const interestWithoutExtra = monthsLeft * loan.monthlyPayment - remainingBalance;
+
+  let balance = remainingBalance;
+  let totalPaidWithExtra = 0;
+  let newMonthsLeft = 0;
+  const payment = loan.monthlyPayment + extraPayment;
+
+  while (balance > 1 && newMonthsLeft < monthsLeft) {
+    const interestThisMonth = r === 0 ? 0 : balance * r;
+    const principalThisMonth = payment - interestThisMonth;
+    if (principalThisMonth >= balance) {
+      totalPaidWithExtra += balance + interestThisMonth;
+      newMonthsLeft++;
+      balance = 0;
+    } else {
+      balance -= principalThisMonth;
+      totalPaidWithExtra += payment;
+      newMonthsLeft++;
+    }
+  }
+
+  const interestWithExtra = Math.max(0, totalPaidWithExtra - remainingBalance);
+  const interestSaved = Math.round(Math.max(0, interestWithoutExtra - interestWithExtra));
+  const monthsSaved = monthsLeft - newMonthsLeft;
+
+  return { newMonthsLeft, monthsSaved, interestSaved };
+}
