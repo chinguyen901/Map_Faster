@@ -8,7 +8,7 @@ import { getMonthTransactions, calcMonthSummary } from "@/lib/calculations";
 import { formatVND } from "@/lib/formatters";
 
 function TransactionsContent() {
-  const { transactions, deleteById } = useTx();
+  const { transactions, deleteById, openEditModal } = useTx();
   const [month, setMonth] = useState(getCurrentMonth());
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "income" | "expense">("all");
@@ -109,7 +109,7 @@ function TransactionsContent() {
         {filtered.length > 0 ? (
           <div className="card p-4 divide-y divide-gray-50">
             {filtered.map((tx) => (
-              <TransactionItem key={tx.id} transaction={tx} onDelete={deleteById} />
+              <TransactionItem key={tx.id} transaction={tx} onDelete={deleteById} onEdit={openEditModal} />
             ))}
           </div>
         ) : (

@@ -46,6 +46,33 @@ export async function createTransaction(data: {
   };
 }
 
+export async function updateTransaction(id: string, data: {
+  type: Transaction["type"];
+  category: string;
+  amount: number;
+  note: string;
+  date: string;
+}): Promise<Transaction | null> {
+  const res = await fetch(`/api/transactions/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(data),
+  });
+  if (res.status === 401) { window.location.href = "/login"; return null; }
+  if (!res.ok) return null;
+  const r = await res.json();
+  return {
+    id: r.id,
+    type: r.type,
+    category: r.category,
+    amount: Number(r.amount),
+    note: r.note ?? "",
+    date: r.date.slice(0, 10),
+    createdAt: r.createdAt,
+  };
+}
+
 export async function deleteTransactionById(id: string): Promise<boolean> {
   const res = await fetch(`/api/transactions/${id}`, {
     method: "DELETE",

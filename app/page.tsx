@@ -10,7 +10,7 @@ import { calcMonthSummary, calcWeeklyData } from "@/lib/calculations";
 import { formatVND, formatVNDShort, formatMonth, getCurrentMonth } from "@/lib/formatters";
 
 function HomeContent() {
-  const { transactions, deleteById } = useTx();
+  const { transactions, deleteById, openEditModal } = useTx();
   const [month, setMonth] = useState(getCurrentMonth());
 
   const summary = useMemo(() => calcMonthSummary(transactions, month), [transactions, month]);
@@ -137,7 +137,7 @@ function HomeContent() {
             <h2 className="font-bold text-[#1A1A2E] text-sm mb-2">Ghi chép gần đây</h2>
             <div className="divide-y divide-gray-50">
               {recent.map((tx) => (
-                <TransactionItem key={tx.id} transaction={tx} onDelete={deleteById} />
+                <TransactionItem key={tx.id} transaction={tx} onDelete={deleteById} onEdit={openEditModal} />
               ))}
             </div>
           </div>

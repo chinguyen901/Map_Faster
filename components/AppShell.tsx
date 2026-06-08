@@ -3,18 +3,20 @@ import { useState, useEffect, createContext, useContext, useCallback } from "rea
 import BottomNav from "./BottomNav";
 import TransactionModal from "./TransactionModal";
 import { Transaction, TransactionType } from "@/types";
-import { fetchTransactions, createTransaction, deleteTransactionById } from "@/lib/api";
+import { fetchTransactions, createTransaction, updateTransaction, deleteTransactionById } from "@/lib/api";
 
 interface TxContextType {
   transactions: Transaction[];
   loading: boolean;
   deleteById: (id: string) => void;
+  openEditModal: (tx: Transaction) => void;
 }
 
 export const TxContext = createContext<TxContextType>({
   transactions: [],
   loading: true,
   deleteById: () => {},
+  openEditModal: () => {},
 });
 export const useTx = () => useContext(TxContext);
 
@@ -22,6 +24,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
   useEffect(() => {
     fetchTransactions().then((data) => {
@@ -30,12 +33,34 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const handleAdd = useCallback(
+  const openAddModal = useCallback(() => {
+    setEditingTransaction(null);
+    setModalOpen(true);
+  }, []);
+
+  const openEditModal = useCallback((tx: Transaction) => {
+    setEditingTransaction(tx);
+    setModalOpen(true);
+  }, []);
+
+  const handleClose = useCallback(() => {
+    setModalOpen(false);
+    setEditingTransaction(null);
+  }, []);
+
+  const handleSave = useCallback(
     async (data: { type: TransactionType; category: string; amount: number; note: string; date: string }) => {
-      const created = await createTransaction(data);
-      if (created) setTransactions((prev) => [created, ...prev]);
+      if (editingTransaction) {
+        const updated = await updateTransaction(editingTransaction.id, data);
+        if (updated) {
+          setTransactions((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+        }
+      } else {
+        const created = await createTransaction(data);
+        if (created) setTransactions((prev) => [created, ...prev]);
+      }
     },
-    []
+    [editingTransaction]
   );
 
   const deleteById = useCallback(async (id: string) => {
@@ -44,10 +69,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <TxContext.Provider value={{ transactions, loading, deleteById }}>
+    <TxContext.Provider value={{ transactions, loading, deleteById, openEditModal }}>
       <div className="safe-bottom">{children}</div>
-      <BottomNav onAddClick={() => setModalOpen(true)} />
-      <TransactionModal open={modalOpen} onClose={() => setModalOpen(false)} onAdd={handleAdd} />
+      <BottomNav onAddClick={openAddModal} />
+      <TransactionModal
+        open={modalOpen}
+        onClose={handleClose}
+        onSave={handleSave}
+        editingTransaction={editingTransaction}
+      />
     </TxContext.Provider>
   );
 }

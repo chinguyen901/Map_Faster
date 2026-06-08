@@ -93,6 +93,16 @@ CREATE INDEX IF NOT EXISTS "idx_otp_user_id" ON "otp_codes"("user_id");
 - **Email OTP:** Resend API (free 3000 email/tháng) — template tiếng Việt
 - **Route protection:** `proxy.ts` (Next.js 16 thay thế middleware.ts)
 
+### Edit Transaction Flow
+
+```
+Tap vào icon hoặc tên giao dịch trong TransactionItem
+→ openEditModal(tx) từ TxContext
+→ TransactionModal mở với editingTransaction pre-filled
+→ PATCH /api/transactions/[id]
+→ updateTransaction() cập nhật state local
+```
+
 ### Auth Flows
 
 ```
@@ -198,16 +208,19 @@ RESEND_FROM=Thu Chi <onboarding@resend.dev>
 | POST | `/api/auth/reset-password` | Đặt lại mật khẩu | Public (resetToken) |
 | GET | `/api/transactions?month=YYYY-MM` | Lấy danh sách giao dịch | JWT |
 | POST | `/api/transactions` | Tạo giao dịch mới | JWT |
+| PATCH | `/api/transactions/[id]` | Sửa giao dịch (Edit) | JWT |
 | DELETE | `/api/transactions/[id]` | Xoá giao dịch | JWT |
 
 ---
 
 ## Tính năng cốt lõi
 
-### 1. Nhập thu / chi nhanh
+### 1. Nhập / Sửa thu chi nhanh
 - Loại (thu/chi) + danh mục + số tiền + ghi chú + ngày
-- Modal FAB button (+) ở bottom nav
-- Lưu vào Neon PostgreSQL qua API
+- Modal FAB button (+) ở bottom nav (thêm mới)
+- Tap vào icon hoặc tên giao dịch → mở modal với data pre-filled (sửa)
+- Button edit (✏️) trên mỗi giao dịch → cũng mở modal sửa
+- Lưu vào Neon PostgreSQL qua API (POST tạo mới, PATCH sửa)
 
 ### 2. Tổng quan tài chính (Trang chủ)
 - Số dư hiện tại (Thu - Chi tháng này)
@@ -320,6 +333,8 @@ Sau mỗi task lớn (tính năng mới, UI overhaul, layout change):
 - [ ] `npm run build` pass không lỗi
 - [ ] Đăng ký → nhận OTP email → đăng nhập được
 - [ ] Thêm giao dịch → lưu DB → reload vẫn còn
+- [ ] **Sửa giao dịch → PATCH API → cập nhật đúng**
+- [ ] Modal không bị thu nhỏ khi bàn phím mở trên iOS
 - [ ] Biểu đồ tròn hiển thị đúng % theo danh mục
 - [ ] Tổng kết tháng: dư/âm đúng màu
 - [ ] Quên MK → OTP email → đặt MK mới → login được
