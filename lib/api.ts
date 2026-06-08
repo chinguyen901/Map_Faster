@@ -1,5 +1,5 @@
 "use client";
-import { Transaction, Loan } from "@/types";
+import { Transaction, Loan, Budget } from "@/types";
 
 export async function fetchTransactions(month?: string): Promise<Transaction[]> {
   const url = month ? `/api/transactions?month=${month}` : "/api/transactions";
@@ -152,4 +152,42 @@ export async function confirmLoanPayment(id: string): Promise<Loan | null> {
   if (res.status === 401) { window.location.href = "/login"; return null; }
   if (!res.ok) return null;
   return normalizeLoan(await res.json());
+}
+
+function normalizeBudget(r: Record<string, unknown>): Budget {
+  return {
+    id: r.id as string,
+    category: r.category as string,
+    amount: Number(r.amount),
+    month: r.month as string,
+    createdAt: r.createdAt as string,
+  };
+}
+
+export async function fetchBudgets(month: string): Promise<Budget[]> {
+  const res = await fetch(`/api/budgets?month=${month}`, { credentials: "include" });
+  if (res.status === 401) { window.location.href = "/login"; return []; }
+  if (!res.ok) return [];
+  return (await res.json()).map(normalizeBudget);
+}
+
+export async function upsertBudget(data: { category: string; amount: number; month: string }): Promise<Budget | null> {
+  const res = await fetch("/api/budgets", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(data),
+  });
+  if (res.status === 401) { window.location.href = "/login"; return null; }
+  if (!res.ok) return null;
+  return normalizeBudget(await res.json());
+}
+
+export async function deleteBudgetById(id: string): Promise<boolean> {
+  const res = await fetch(`/api/budgets/${id}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (res.status === 401) { window.location.href = "/login"; return false; }
+  return res.ok;
 }

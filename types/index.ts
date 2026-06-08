@@ -59,6 +59,14 @@ export interface Loan {
   createdAt: string;
 }
 
+export interface Budget {
+  id: string;
+  category: string;
+  amount: number;
+  month: string; // YYYY-MM
+  createdAt: string;
+}
+
 export const LENDER_TYPES = [
   { value: "bank" as LenderType, label: "Ngân hàng", icon: "🏦" },
   { value: "consumer" as LenderType, label: "Vay tiêu dùng", icon: "💳" },

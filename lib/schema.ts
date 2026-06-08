@@ -50,6 +50,17 @@ export const loans = pgTable("loans", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const budgets = pgTable("budgets", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  category: varchar("category", { length: 50 }).notNull(),
+  amount: bigint("amount", { mode: "number" }).notNull(),
+  month: varchar("month", { length: 7 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type OtpCode = typeof otpCodes.$inferSelect;

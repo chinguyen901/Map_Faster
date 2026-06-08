@@ -1,13 +1,19 @@
 "use client";
-import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useMemo, useState, useEffect, useCallback } from "react";
+import { ChevronLeft, ChevronRight, Plus, TrendingUp, TrendingDown } from "lucide-react";
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from "recharts";
 import AppShell, { useTx } from "@/components/AppShell";
-import { calcExpenseByCategory, calcMonthSummary, getLast6Months } from "@/lib/calculations";
+import BudgetModal from "@/components/BudgetModal";
+import {
+  calcExpenseByCategory, calcMonthSummary, getLast6Months,
+  calcCategoryInsights,
+} from "@/lib/calculations";
 import { formatVND, formatVNDShort, formatMonth, getCurrentMonth } from "@/lib/formatters";
+import { fetchBudgets, upsertBudget, deleteBudgetById } from "@/lib/api";
+import { Budget, EXPENSE_CATEGORIES } from "@/types";
 
 const RADIAN = Math.PI / 180;
 function CustomLabel({ cx, cy, midAngle, innerRadius, outerRadius, percentage }: {
@@ -28,9 +34,18 @@ function CustomLabel({ cx, cy, midAngle, innerRadius, outerRadius, percentage }:
 function ChartsContent() {
   const { transactions } = useTx();
   const [month, setMonth] = useState(getCurrentMonth());
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [budgetModal, setBudgetModal] = useState<{
+    open: boolean; category?: string; amount?: number; budgetId?: string;
+  }>({ open: false });
+
+  useEffect(() => {
+    fetchBudgets(month).then(setBudgets);
+  }, [month]);
 
   const categoryData = useMemo(() => calcExpenseByCategory(transactions, month), [transactions, month]);
   const summary = useMemo(() => calcMonthSummary(transactions, month), [transactions, month]);
+  const insights = useMemo(() => calcCategoryInsights(transactions, month), [transactions, month]);
 
   const last6 = useMemo(() => getLast6Months(), []);
   const trend = useMemo(() =>
@@ -53,6 +68,40 @@ function ChartsContent() {
     setMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
   }
 
+  const handleSaveBudget = useCallback(async (category: string, amount: number) => {
+    const result = await upsertBudget({ category, amount, month });
+    if (result) {
+      setBudgets((prev) => {
+        const exists = prev.find((b) => b.category === category);
+        return exists ? prev.map((b) => (b.category === category ? result : b)) : [...prev, result];
+      });
+    }
+    setBudgetModal({ open: false });
+  }, [month]);
+
+  const handleDeleteBudget = useCallback(async () => {
+    if (!budgetModal.budgetId) return;
+    const ok = await deleteBudgetById(budgetModal.budgetId);
+    if (ok) setBudgets((prev) => prev.filter((b) => b.id !== budgetModal.budgetId));
+    setBudgetModal({ open: false });
+  }, [budgetModal.budgetId]);
+
+  // Categories to show in budget section: union of spent + budgeted
+  const budgetRows = useMemo(() => {
+    const spentMap = new Map(categoryData.map((c) => [c.category, c.amount]));
+    const budgetMap = new Map(budgets.map((b) => [b.category, b]));
+    const allCats = new Set([...spentMap.keys(), ...budgetMap.keys()]);
+    return Array.from(allCats).map((cat) => {
+      const catDef = EXPENSE_CATEGORIES.find((c) => c.name === cat);
+      const spent = spentMap.get(cat) ?? 0;
+      const budget = budgetMap.get(cat);
+      const pct = budget ? Math.min(Math.round((spent / budget.amount) * 100), 999) : null;
+      return { cat, icon: catDef?.icon ?? "💰", color: catDef?.color ?? "#B0B0B0", spent, budget, pct };
+    }).sort((a, b) => (b.pct ?? -1) - (a.pct ?? -1));
+  }, [categoryData, budgets]);
+
+  const showBudgetSection = budgetRows.length > 0;
+
   return (
     <div className="min-h-screen bg-[#F0F8FF]">
       {/* Header */}
@@ -66,6 +115,36 @@ function ChartsContent() {
       </div>
 
       <div className="px-4 py-5 space-y-4">
+
+        {/* Spending Insights (T1-3) */}
+        {insights.length > 0 && (
+          <div className="card p-4">
+            <h2 className="font-bold text-[#1A1A2E] text-sm mb-3">💡 Nhận xét chi tiêu</h2>
+            <div className="space-y-2">
+              {insights.map((insight) => {
+                const isOver = insight.changePercent > 0;
+                return (
+                  <div key={insight.category} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">{insight.icon}</span>
+                      <span className="text-sm text-gray-700">{insight.category}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`flex items-center gap-0.5 text-xs font-bold px-2 py-0.5 rounded-full ${
+                        isOver ? "bg-red-50 text-[#F44336]" : "bg-green-50 text-[#4CAF50]"
+                      }`}>
+                        {isOver ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+                        {isOver ? "+" : ""}{insight.changePercent}%
+                      </span>
+                      <span className="text-xs text-gray-400">so TB 3 tháng</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Pie chart - expense by category */}
         <div className="card p-4">
           <div className="flex items-center justify-between mb-1">
@@ -98,7 +177,6 @@ function ChartsContent() {
                 </PieChart>
               </ResponsiveContainer>
 
-              {/* Legend */}
               <div className="space-y-2 mt-2">
                 {categoryData.map((item) => (
                   <div key={item.category} className="flex items-center justify-between">
@@ -116,6 +194,90 @@ function ChartsContent() {
             </>
           ) : (
             <div className="py-8 text-center text-gray-400 text-sm">Chưa có dữ liệu chi tiêu</div>
+          )}
+        </div>
+
+        {/* Budget section (T1-2) */}
+        <div className="card p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-bold text-[#1A1A2E] text-sm">🎯 Ngân sách tháng này</h2>
+            <button
+              onClick={() => setBudgetModal({ open: true })}
+              className="flex items-center gap-1 text-xs font-semibold text-[#1E90FF] bg-blue-50 px-2.5 py-1 rounded-full"
+            >
+              <Plus size={12} /> Thêm
+            </button>
+          </div>
+
+          {showBudgetSection ? (
+            <div className="space-y-3">
+              {budgetRows.map(({ cat, icon, color, spent, budget, pct }) => {
+                const isOver = pct !== null && pct >= 100;
+                const isWarning = pct !== null && pct >= 80 && pct < 100;
+                const barColor = isOver ? "#F44336" : isWarning ? "#FF9800" : "#1E90FF";
+
+                return (
+                  <div key={cat}>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm">{icon}</span>
+                        <span className="text-sm font-medium text-gray-700">{cat}</span>
+                        {isOver && <span className="text-[10px] font-bold text-[#F44336] bg-red-50 px-1.5 py-0.5 rounded-full">Vượt!</span>}
+                        {isWarning && <span className="text-[10px] font-bold text-[#FF9800] bg-orange-50 px-1.5 py-0.5 rounded-full">Gần đạt</span>}
+                      </div>
+                      <button
+                        onClick={() => setBudgetModal({
+                          open: true,
+                          category: cat,
+                          amount: budget?.amount,
+                          budgetId: budget?.id,
+                        })}
+                        className="text-xs text-[#1E90FF]"
+                      >
+                        {budget ? formatVNDShort(budget.amount) : "Đặt ngân sách"}
+                      </button>
+                    </div>
+
+                    {budget ? (
+                      <>
+                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all"
+                            style={{ width: `${Math.min(pct ?? 0, 100)}%`, backgroundColor: barColor }}
+                          />
+                        </div>
+                        <div className="flex justify-between mt-1">
+                          <span className="text-[11px] text-gray-400">
+                            Đã chi {formatVNDShort(spent)}
+                          </span>
+                          {isOver ? (
+                            <span className="text-[11px] font-semibold text-[#F44336]">
+                              Vượt {formatVNDShort(spent - budget.amount)}
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-gray-400">
+                              Còn {formatVNDShort(budget.amount - spent)}
+                            </span>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="h-2 bg-gray-100 rounded-full" />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="py-6 text-center">
+              <p className="text-sm text-gray-400 mb-3">Chưa có ngân sách cho tháng này</p>
+              <button
+                onClick={() => setBudgetModal({ open: true })}
+                className="text-sm font-semibold text-[#1E90FF]"
+              >
+                Đặt ngân sách ngay →
+              </button>
+            </div>
           )}
         </div>
 
@@ -155,6 +317,15 @@ function ChartsContent() {
           </div>
         </div>
       </div>
+
+      <BudgetModal
+        open={budgetModal.open}
+        onClose={() => setBudgetModal({ open: false })}
+        onSave={handleSaveBudget}
+        onDelete={budgetModal.budgetId ? handleDeleteBudget : undefined}
+        editingCategory={budgetModal.category}
+        editingAmount={budgetModal.amount}
+      />
     </div>
   );
 }

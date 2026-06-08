@@ -127,6 +127,56 @@ export function calcTotalMonthlyLoanBurden(loans: Loan[]): number {
     .reduce((sum, l) => sum + l.monthlyPayment, 0);
 }
 
+export interface CategoryInsight {
+  category: string;
+  icon: string;
+  currentAmount: number;
+  avgAmount: number;
+  changePercent: number; // positive = spent more than avg, negative = less
+}
+
+export function calcCategoryInsights(transactions: Transaction[], month: string): CategoryInsight[] {
+  const [y, m] = month.split("-").map(Number);
+
+  // Build prev 3 months (only those that have data)
+  const prevMonths: string[] = [];
+  for (let i = 1; i <= 3; i++) {
+    const d = new Date(y, m - 1 - i, 1);
+    prevMonths.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  }
+
+  const current = calcExpenseByCategory(transactions, month);
+  if (current.length === 0) return [];
+
+  const insights: CategoryInsight[] = [];
+
+  for (const cat of current) {
+    const prevAmounts = prevMonths
+      .map((pm) => calcExpenseByCategory(transactions, pm).find((c) => c.category === cat.category)?.amount ?? 0)
+      .filter((a) => a > 0);
+
+    if (prevAmounts.length === 0) continue;
+
+    const avg = prevAmounts.reduce((s, a) => s + a, 0) / prevAmounts.length;
+    const changePercent = Math.round(((cat.amount - avg) / avg) * 100);
+
+    if (Math.abs(changePercent) < 10) continue;
+
+    const catDef = EXPENSE_CATEGORIES.find((c) => c.name === cat.category);
+    insights.push({
+      category: cat.category,
+      icon: catDef?.icon ?? "💰",
+      currentAmount: cat.amount,
+      avgAmount: Math.round(avg),
+      changePercent,
+    });
+  }
+
+  return insights
+    .sort((a, b) => Math.abs(b.changePercent) - Math.abs(a.changePercent))
+    .slice(0, 5);
+}
+
 export function calcTotalRemainingDebt(loans: Loan[]): number {
   return loans.reduce(
     (sum, l) => sum + (l.totalMonths - l.monthsPaid) * l.monthlyPayment,

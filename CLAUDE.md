@@ -1,4 +1,23 @@
-# Thu Chi Tiết Kiệm — CLAUDE.md
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+---
+
+## Commands
+
+```bash
+npm run dev      # Chạy dev server tại http://localhost:3000
+npm run build    # Build production (kiểm tra TypeScript + Next.js compile)
+npm run lint     # ESLint
+npm run start    # Chạy production build local
+```
+
+**Không có test framework** trong dự án này — kiểm tra bằng cách chạy app thực tế.
+
+**Drizzle migrations:** Schema được quản lý thủ công bằng SQL chạy trực tiếp trên Neon SQL Editor (không dùng `drizzle-kit push` hay migration files).
+
+---
 
 ## Tổng quan dự án
 
@@ -46,6 +65,10 @@ otp_codes     id (uuid PK), user_id (FK→users), target (email),
 
 transactions  id (uuid PK), user_id (FK→users), type ('income'|'expense'),
               category, amount (bigint VND), note, date, created_at
+
+budgets       id (uuid PK), user_id (FK→users), category, amount (bigint VND),
+              month (varchar YYYY-MM), created_at
+              UNIQUE(user_id, category, month) — upsert via POST /api/budgets
 
 loans         id (uuid PK), user_id (FK→users), name, lender_type,
               principal (bigint VND), monthly_payment (bigint VND),
@@ -114,7 +137,17 @@ CREATE INDEX IF NOT EXISTS "idx_loans_user_id" ON "loans"("user_id");
 - **Password:** bcryptjs hash (rounds=12)
 - **OTP:** 6 chữ số ngẫu nhiên, hết hạn 5 phút, lưu trong DB
 - **Email OTP:** Resend API (free 3000 email/tháng) — template tiếng Việt
-- **Route protection:** `proxy.ts` (Next.js 16 thay thế middleware.ts)
+- **Route protection:** `proxy.ts` — Next.js 16 dùng `proxy.ts` thay cho `middleware.ts` (convention mới). Export function tên `proxy`, build output hiển thị `ƒ Proxy (Middleware)` khi hoạt động đúng. **Không tạo `middleware.ts`** — sẽ conflict.
+
+### State Management
+
+`AppShell` là client component duy nhất giữ toàn bộ state giao dịch:
+- Fetch **tất cả** giao dịch của user một lần khi mount (không phân trang, không lọc theo tháng)
+- Filter theo tháng xảy ra ở client-side trong `calculations.ts`
+- State được cập nhật optimistically sau mỗi PATCH/POST/DELETE — không refetch từ server
+- Context `TxContext` (export từ `AppShell.tsx`) cung cấp `transactions`, `loading`, `deleteById`, `openEditModal` cho toàn bộ app
+
+`/loans` page quản lý state khoản vay riêng biệt (local state, không qua context).
 
 ### Edit Transaction Flow
 
@@ -215,7 +248,8 @@ chitieu/
 │   ├── TransactionItem.tsx      ← Row giao dịch (tap để sửa, icon xoá)
 │   ├── LoanModal.tsx            ← Form thêm/sửa khoản vay (bottom sheet)
 │   ├── LoanItem.tsx             ← Card khoản vay (badge ngày đến hạn, progress, confirm btn)
-│   └── LoanSummaryWidget.tsx    ← Widget trang chủ: donut chart + còn phải trả tháng này
+│   ├── LoanSummaryWidget.tsx    ← Widget trang chủ: donut chart + còn phải trả tháng này
+│   └── BudgetModal.tsx          ← Bottom sheet đặt/sửa/xoá ngân sách per category
 │
 ├── lib/
 │   ├── schema.ts                ← Drizzle schema (4 bảng: users, otpCodes, transactions, loans)
@@ -229,12 +263,13 @@ chitieu/
 │   │                               deleteLoanById, confirmLoanPayment
 │   ├── calculations.ts          ← calcMonthSummary, calcExpenseByCategory,
 │   │                               calcWeeklyData, getLast6Months,
+│   │                               calcCategoryInsights (so sánh với TB 3 tháng),
 │   │                               solveMonthlyRate (Newton's method),
 │   │                               calcAnnualRate, calcRemainingBalance,
 │   │                               calcLoanStatus, calcTotalMonthlyLoanBurden,
 │   │                               calcTotalRemainingDebt
 │   ├── formatters.ts            ← formatVND, formatMonth, ...
-│   └── storage.ts               ← Legacy (không dùng nữa, có thể xoá)
+│   └── storage.ts               ← Legacy (không dùng nữa, an toàn để xoá)
 │
 ├── types/
 │   └── index.ts                 ← Transaction type, categories, constants,
@@ -279,6 +314,10 @@ RESEND_FROM=Thu Chi <onboarding@resend.dev>
 | POST | `/api/transactions` | Tạo giao dịch mới | JWT |
 | PATCH | `/api/transactions/[id]` | Sửa giao dịch (Edit) | JWT |
 | DELETE | `/api/transactions/[id]` | Xoá giao dịch | JWT |
+| GET | `/api/budgets?month=YYYY-MM` | Lấy ngân sách theo tháng | JWT |
+| POST | `/api/budgets` | Tạo/cập nhật ngân sách (upsert) | JWT |
+| PATCH | `/api/budgets/[id]` | Sửa số tiền ngân sách | JWT |
+| DELETE | `/api/budgets/[id]` | Xoá ngân sách | JWT |
 | GET | `/api/loans` | Lấy danh sách khoản vay | JWT |
 | POST | `/api/loans` | Tạo khoản vay mới | JWT |
 | PATCH | `/api/loans/[id]` | Sửa khoản vay | JWT |
