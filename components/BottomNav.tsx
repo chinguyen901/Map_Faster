@@ -18,15 +18,15 @@ export default function BottomNav({ onAddClick }: Props) {
   const pathname = usePathname();
 
   return (
-    <nav className="bottom-nav fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-white border-t border-gray-100 z-50 shadow-lg">
+    <nav className="bottom-nav fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-white dark:bg-[#161B27] border-t border-gray-100 dark:border-gray-800 z-50 shadow-lg dark:shadow-black/40">
       <div className="flex items-center justify-around h-16 px-2 relative">
         {navItems.slice(0, 2).map((item) => {
           const Icon = item.icon;
           const active = pathname === item.href;
           return (
             <Link key={item.href} href={item.href} className="flex flex-col items-center gap-0.5 py-1 px-3 min-w-[56px]">
-              <Icon size={22} className={active ? "text-[#1E90FF]" : "text-gray-400"} />
-              <span className={`text-[10px] font-medium ${active ? "text-[#1E90FF]" : "text-gray-400"}`}>
+              <Icon size={22} className={active ? "text-[#1E90FF]" : "text-gray-400 dark:text-gray-500"} />
+              <span className={`text-[10px] font-medium ${active ? "text-[#1E90FF]" : "text-gray-400 dark:text-gray-500"}`}>
                 {item.label}
               </span>
             </Link>
@@ -47,8 +47,8 @@ export default function BottomNav({ onAddClick }: Props) {
           const active = pathname === item.href;
           return (
             <Link key={item.href} href={item.href} className="flex flex-col items-center gap-0.5 py-1 px-3 min-w-[56px]">
-              <Icon size={22} className={active ? "text-[#1E90FF]" : "text-gray-400"} />
-              <span className={`text-[10px] font-medium ${active ? "text-[#1E90FF]" : "text-gray-400"}`}>
+              <Icon size={22} className={active ? "text-[#1E90FF]" : "text-gray-400 dark:text-gray-500"} />
+              <span className={`text-[10px] font-medium ${active ? "text-[#1E90FF]" : "text-gray-400 dark:text-gray-500"}`}>
                 {item.label}
               </span>
             </Link>

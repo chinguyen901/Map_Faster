@@ -66,7 +66,7 @@ export default function LoansPage() {
   return (
     <div className="min-h-screen bg-[#F0F8FF]">
       {/* Header */}
-      <div className="bg-[#1E90FF] rounded-b-[32px] px-5 pt-12 pb-6 text-white">
+      <div className="bg-[#1E90FF] rounded-b-[32px] px-5 safe-header pb-6 text-white">
         <div className="flex items-center gap-3 mb-4">
           <button
             onClick={() => router.back()}

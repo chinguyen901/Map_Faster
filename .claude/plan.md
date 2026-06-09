@@ -107,7 +107,7 @@
 
 > Tạo lợi thế cạnh tranh rõ ràng, khó copy nhanh.
 
-### T2-1 · Cash flow forecast cuối tháng
+### ✅ T2-1 · Cash flow forecast cuối tháng
 - Tính: "Dự kiến còn **2.340.000 đ** vào 30/06 theo đà chi tiêu hiện tại"
 - Dựa trên: thu nhập đã ghi + chi tiêu trung bình ngày đến nay × ngày còn lại
 - Hiển thị ngay trên trang chủ dưới số dư hiện tại
@@ -136,7 +136,7 @@
 - **DB:** bảng `reminders(id, user_id, name, day_of_month, amount_estimate)`
 - **Tech:** Web Push API + VAPID keys, service worker
 
-### T2-5 · Gamification nhẹ
+### ✅ T2-5 · Gamification nhẹ
 - **Streak:** số ngày liên tiếp có ít nhất 1 giao dịch được nhập
 - **Milestones:** "Tháng đầu tiên số dư dương 🎉", "10 ngày streak 🔥", "Trả hết khoản vay đầu tiên 🏆"
 - Toast notification khi đạt milestone
@@ -149,7 +149,7 @@
 - **DB:** bảng `custom_categories(id, user_id, type, name, icon, color)`
 - Merge với danh mục mặc định khi render
 
-### T2-7 · Dark mode
+### ✅ T2-7 · Dark mode
 - Toggle trong Settings
 - Dùng Tailwind `dark:` variants + `localStorage` preference
 - **File:** `app/globals.css` + `app/layout.tsx` + `components/AppShell.tsx`

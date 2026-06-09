@@ -7,7 +7,8 @@ import {
 import AppShell, { useTx } from "@/components/AppShell";
 import TransactionItem from "@/components/TransactionItem";
 import LoanSummaryWidget from "@/components/LoanSummaryWidget";
-import { calcMonthSummary, calcWeeklyData } from "@/lib/calculations";
+import HealthScoreWidget from "@/components/HealthScoreWidget";
+import { calcMonthSummary, calcWeeklyData, calcMonthEndForecast, calcStreak } from "@/lib/calculations";
 import { formatVND, formatVNDShort, formatMonth, getCurrentMonth } from "@/lib/formatters";
 
 function HomeContent() {
@@ -16,6 +17,8 @@ function HomeContent() {
 
   const summary = useMemo(() => calcMonthSummary(transactions, month), [transactions, month]);
   const weeklyData = useMemo(() => calcWeeklyData(transactions, month), [transactions, month]);
+  const forecast = useMemo(() => calcMonthEndForecast(transactions, month), [transactions, month]);
+  const streak = useMemo(() => calcStreak(transactions), [transactions]);
   const recent = useMemo(
     () => transactions.filter((t) => t.date.startsWith(month)).slice(0, 8),
     [transactions, month]
@@ -35,10 +38,10 @@ function HomeContent() {
   const isPositive = summary.balance >= 0;
 
   return (
-    <div className="min-h-screen bg-[#F0F8FF]">
+    <div className="min-h-screen bg-[#F0F8FF] dark:bg-[#0D1117]">
       {/* Header */}
-      <div className="bg-[#1E90FF] pt-12 pb-8 px-5 rounded-b-[32px]">
-        <div className="flex items-center justify-between mb-6">
+      <div className="bg-[#1E90FF] safe-header pb-8 px-5 rounded-b-[32px]">
+        <div className="flex items-center justify-between mb-1">
           <div>
             <p className="text-blue-100 text-sm font-medium">Tài chính hiện tại</p>
             <h1 className="text-white font-extrabold mt-0.5" style={{ fontSize: "clamp(1.6rem,6vw,2rem)", letterSpacing: "-0.5px" }}>
@@ -53,8 +56,15 @@ function HomeContent() {
           </div>
         </div>
 
+        {/* Streak badge */}
+        {streak >= 2 && (
+          <div className="inline-flex items-center gap-1.5 bg-orange-400/25 rounded-full px-3 py-1 text-xs font-semibold text-orange-100 mb-4 mt-2">
+            🔥 {streak} ngày liên tiếp
+          </div>
+        )}
+
         {/* Income / Expense row */}
-        <div className="flex gap-3">
+        <div className="flex gap-3 mt-3">
           <div className="flex-1 bg-white/20 backdrop-blur rounded-2xl p-3 flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-green-400/30 flex items-center justify-center">
               <TrendingUp size={16} className="text-green-200" />
@@ -78,23 +88,23 @@ function HomeContent() {
 
       <div className="px-4 py-5 space-y-4">
         {/* Month picker */}
-        <div className="flex items-center justify-between bg-white rounded-2xl px-4 py-2.5 shadow-sm">
-          <button onClick={prevMonth} className="p-1.5 rounded-full hover:bg-gray-100 active:bg-gray-200">
-            <ChevronLeft size={18} className="text-gray-500" />
+        <div className="flex items-center justify-between bg-white dark:bg-[#161B27] rounded-2xl px-4 py-2.5 shadow-sm">
+          <button onClick={prevMonth} className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200">
+            <ChevronLeft size={18} className="text-gray-500 dark:text-gray-400" />
           </button>
-          <span className="font-bold text-[#1A1A2E] text-sm">{formatMonth(month)}</span>
-          <button onClick={nextMonth} className="p-1.5 rounded-full hover:bg-gray-100 active:bg-gray-200">
-            <ChevronRight size={18} className="text-gray-500" />
+          <span className="font-bold text-[#1A1A2E] dark:text-white text-sm">{formatMonth(month)}</span>
+          <button onClick={nextMonth} className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200">
+            <ChevronRight size={18} className="text-gray-500 dark:text-gray-400" />
           </button>
         </div>
 
         {/* Bar Chart */}
         <div className="card p-4">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold text-[#1A1A2E] text-sm">Tình hình thu chi</h2>
+            <h2 className="font-bold text-[#1A1A2E] dark:text-white text-sm">Tình hình thu chi</h2>
             <div className="flex gap-3 text-[10px]">
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#4CAF50]" />Thu</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#F44336]" />Chi</span>
+              <span className="flex items-center gap-1 text-gray-500 dark:text-gray-400"><span className="w-2 h-2 rounded-full bg-[#4CAF50]" />Thu</span>
+              <span className="flex items-center gap-1 text-gray-500 dark:text-gray-400"><span className="w-2 h-2 rounded-full bg-[#F44336]" />Chi</span>
             </div>
           </div>
           <ResponsiveContainer width="100%" height={140}>
@@ -111,20 +121,50 @@ function HomeContent() {
           </ResponsiveContainer>
         </div>
 
+        {/* Forecast widget — only shown for current month with enough data */}
+        {forecast && (
+          <div className="card p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-bold text-[#1A1A2E] dark:text-white text-sm">💡 Dự báo cuối tháng</h2>
+              <span className="text-xs text-gray-400">còn {forecast.daysLeft} ngày</span>
+            </div>
+            <div className="flex gap-3">
+              <div className="flex-1 bg-[#F0F8FF] dark:bg-gray-800/60 rounded-xl p-3">
+                <p className="text-[10px] text-gray-400 font-medium">Chi dự kiến</p>
+                <p className="font-bold text-[#F44336] text-sm mt-0.5">{formatVND(forecast.projectedExpense)}</p>
+              </div>
+              <div className="flex-1 bg-[#F0F8FF] dark:bg-gray-800/60 rounded-xl p-3">
+                <p className="text-[10px] text-gray-400 font-medium">Số dư dự kiến</p>
+                <p className={`font-bold text-sm mt-0.5 ${forecast.projectedBalance >= 0 ? "text-[#4CAF50]" : "text-[#F44336]"}`}>
+                  {forecast.projectedBalance >= 0 ? "+" : ""}{formatVND(forecast.projectedBalance)}
+                </p>
+              </div>
+            </div>
+            <p className="text-[10px] text-gray-400 mt-2">
+              Theo đà chi tiêu {formatVNDShort(forecast.dailyAvgExpense)}/ngày hiện tại
+            </p>
+          </div>
+        )}
+
         {/* Loan summary widget */}
         <LoanSummaryWidget />
 
+        {/* Health score widget */}
+        <HealthScoreWidget />
+
         {/* Summary message */}
         <div className={`rounded-2xl p-4 flex items-center gap-3 ${
-          isPositive ? "bg-green-50 border border-green-100" : "bg-red-50 border border-red-100"
+          isPositive
+            ? "bg-green-50 dark:bg-green-950/30 border border-green-100 dark:border-green-900/30"
+            : "bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/30"
         }`}>
           <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${
-            isPositive ? "bg-green-100" : "bg-red-100"
+            isPositive ? "bg-green-100 dark:bg-green-900/50" : "bg-red-100 dark:bg-red-900/50"
           }`}>
             <Wallet size={20} className={isPositive ? "text-green-600" : "text-red-500"} />
           </div>
           <div>
-            <p className={`font-bold text-sm ${isPositive ? "text-green-700" : "text-red-600"}`}>
+            <p className={`font-bold text-sm ${isPositive ? "text-green-700 dark:text-green-300" : "text-red-600 dark:text-red-300"}`}>
               {isPositive
                 ? `Tháng này bạn tiết kiệm được ${formatVND(summary.balance)}`
                 : `Tháng này bạn bội chi ${formatVND(Math.abs(summary.balance))}`}
@@ -138,8 +178,8 @@ function HomeContent() {
         {/* Recent transactions */}
         {recent.length > 0 && (
           <div className="card p-4">
-            <h2 className="font-bold text-[#1A1A2E] text-sm mb-2">Ghi chép gần đây</h2>
-            <div className="divide-y divide-gray-50">
+            <h2 className="font-bold text-[#1A1A2E] dark:text-white text-sm mb-2">Ghi chép gần đây</h2>
+            <div className="divide-y divide-gray-50 dark:divide-gray-700/50">
               {recent.map((tx) => (
                 <TransactionItem key={tx.id} transaction={tx} onDelete={deleteById} onEdit={openEditModal} />
               ))}
@@ -150,8 +190,8 @@ function HomeContent() {
         {recent.length === 0 && (
           <div className="card p-8 text-center">
             <p className="text-4xl mb-3">💸</p>
-            <p className="text-gray-500 text-sm">Chưa có giao dịch nào</p>
-            <p className="text-gray-400 text-xs mt-1">Nhấn + để thêm thu chi</p>
+            <p className="text-gray-500 dark:text-gray-400 text-sm">Chưa có giao dịch nào</p>
+            <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">Nhấn + để thêm thu chi</p>
           </div>
         )}
       </div>

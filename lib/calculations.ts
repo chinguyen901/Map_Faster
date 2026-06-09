@@ -1,4 +1,4 @@
-import { Transaction, MonthSummary, CategorySummary, EXPENSE_CATEGORIES, Loan } from "@/types";
+import { Transaction, MonthSummary, CategorySummary, EXPENSE_CATEGORIES, Loan, Budget } from "@/types";
 
 export function getMonthTransactions(transactions: Transaction[], month: string): Transaction[] {
   return transactions.filter((t) => t.date.startsWith(month));
@@ -225,4 +225,155 @@ export function calcEarlyPayoff(loan: Loan, extraPayment: number): EarlyPayoffRe
   const monthsSaved = monthsLeft - newMonthsLeft;
 
   return { newMonthsLeft, monthsSaved, interestSaved };
+}
+
+// --- T2-1: Cash flow forecast ---
+
+export interface MonthEndForecast {
+  projectedExpense: number;
+  projectedBalance: number;
+  dailyAvgExpense: number;
+  daysLeft: number;
+}
+
+export function calcMonthEndForecast(
+  transactions: Transaction[],
+  month: string,
+  today?: Date
+): MonthEndForecast | null {
+  const now = today ?? new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  if (month !== currentMonth) return null;
+
+  const txs = getMonthTransactions(transactions, month);
+  const dayOfMonth = now.getDate();
+  if (dayOfMonth < 5) return null; // need at least 5 days of data
+
+  const totalIncome = txs.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
+  const totalExpense = txs.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
+  if (totalExpense === 0) return null;
+
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const daysLeft = daysInMonth - dayOfMonth;
+  if (daysLeft === 0) return null;
+
+  const dailyAvgExpense = totalExpense / dayOfMonth;
+  const projectedExpense = Math.round(totalExpense + dailyAvgExpense * daysLeft);
+  const projectedBalance = totalIncome - projectedExpense;
+
+  return {
+    projectedExpense,
+    projectedBalance,
+    dailyAvgExpense: Math.round(dailyAvgExpense),
+    daysLeft,
+  };
+}
+
+// --- T2-2: Financial Health Score ---
+
+export interface HealthScore {
+  total: number;
+  savings: number;
+  debt: number;
+  consistency: number;
+  budget: number;
+  label: string;
+  color: string;
+}
+
+export function calcHealthScore(
+  transactions: Transaction[],
+  loans: Loan[],
+  budgets: Budget[],
+  currentMonth: string
+): HealthScore {
+  // Fall back to last month if current month has no transactions
+  const monthTxs = getMonthTransactions(transactions, currentMonth);
+  const activeMonth = monthTxs.length > 0 ? currentMonth : (() => {
+    const [y, m] = currentMonth.split("-").map(Number);
+    const d = new Date(y, m - 2, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  })();
+
+  const { totalIncome, totalExpense } = calcMonthSummary(transactions, activeMonth);
+
+  // 1. Savings score (0–30): tỉ lệ tiết kiệm
+  let savingsScore = 0;
+  if (totalIncome > 0) {
+    const rate = (totalIncome - totalExpense) / totalIncome;
+    if (rate >= 0.2) savingsScore = 30;
+    else if (rate >= 0.1) savingsScore = 20;
+    else if (rate >= 0.05) savingsScore = 12;
+    else if (rate >= 0) savingsScore = 6;
+  }
+
+  // 2. Debt score (0–30): debt-to-income ratio
+  const activeLoans = loans.filter((l) => l.monthsPaid < l.totalMonths);
+  const monthlyBurden = activeLoans.reduce((s, l) => s + l.monthlyPayment, 0);
+  let debtScore = 30;
+  if (activeLoans.length > 0) {
+    if (totalIncome > 0) {
+      const dti = monthlyBurden / totalIncome;
+      if (dti >= 0.5) debtScore = 0;
+      else if (dti >= 0.35) debtScore = 8;
+      else if (dti >= 0.2) debtScore = 18;
+      else debtScore = 25;
+    } else {
+      debtScore = 5;
+    }
+  }
+
+  // 3. Consistency score (0–20): số tháng dương trong 3 tháng qua
+  const [y, m] = currentMonth.split("-").map(Number);
+  let positiveMonths = 0;
+  for (let i = 1; i <= 3; i++) {
+    const d = new Date(y, m - 1 - i, 1);
+    const pm = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const { balance, totalIncome: inc } = calcMonthSummary(transactions, pm);
+    if (inc > 0 && balance > 0) positiveMonths++;
+  }
+  const consistencyScore = positiveMonths >= 3 ? 20 : positiveMonths >= 2 ? 14 : positiveMonths >= 1 ? 7 : 0;
+
+  // 4. Budget score (0–20): tuân thủ ngân sách
+  const monthBudgets = budgets.filter((b) => b.month === activeMonth);
+  let budgetScore = 5;
+  if (monthBudgets.length > 0) {
+    const expenses = calcExpenseByCategory(transactions, activeMonth);
+    const compliant = monthBudgets.filter((budget) => {
+      const spent = expenses.find((e) => e.category === budget.category)?.amount ?? 0;
+      return spent <= budget.amount;
+    }).length;
+    budgetScore = Math.round(8 + (compliant / monthBudgets.length) * 12);
+  }
+
+  const total = Math.min(100, savingsScore + debtScore + consistencyScore + budgetScore);
+
+  let label: string;
+  let color: string;
+  if (total >= 80) { label = "Xuất sắc"; color = "#4CAF50"; }
+  else if (total >= 65) { label = "Tốt"; color = "#1E90FF"; }
+  else if (total >= 45) { label = "Trung bình"; color = "#FF9800"; }
+  else { label = "Cần cải thiện"; color = "#F44336"; }
+
+  return { total, savings: savingsScore, debt: debtScore, consistency: consistencyScore, budget: budgetScore, label, color };
+}
+
+// --- T2-5: Gamification streak ---
+
+export function calcStreak(transactions: Transaction[]): number {
+  if (transactions.length === 0) return 0;
+  const dates = new Set(transactions.map((t) => t.date));
+  const today = new Date();
+  let streak = 0;
+  const check = new Date(today);
+  while (true) {
+    const iso = `${check.getFullYear()}-${String(check.getMonth() + 1).padStart(2, "0")}-${String(check.getDate()).padStart(2, "0")}`;
+    if (dates.has(iso)) {
+      streak++;
+      check.setDate(check.getDate() - 1);
+    } else {
+      break;
+    }
+  }
+  return streak;
 }

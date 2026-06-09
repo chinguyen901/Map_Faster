@@ -37,7 +37,7 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-dvh bg-[#1E90FF] flex flex-col">
-      <div className="flex items-center px-5 pt-14 pb-6">
+      <div className="flex items-center px-5 safe-auth-nav pb-6">
         <button onClick={() => router.back()} className="p-2 text-white/80">
           <ChevronLeft size={24} />
         </button>

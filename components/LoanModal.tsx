@@ -88,8 +88,8 @@ export default function LoanModal({ open, onClose, onSave, editingLoan }: Props)
 
   return (
     <>
-      <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pointer-events-none">
+      <div className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed bottom-0 left-0 right-0 z-[60] flex justify-center pointer-events-none">
         <div
           className="w-full max-w-[430px] bg-white rounded-t-3xl shadow-2xl pointer-events-auto"
           style={{ maxHeight: "90dvh", overflowY: "auto" }}

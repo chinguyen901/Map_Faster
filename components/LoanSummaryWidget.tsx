@@ -44,7 +44,7 @@ export default function LoanSummaryWidget() {
     <div className="card p-4">
       {/* Title */}
       <div className="flex items-center justify-between mb-3">
-        <h2 className="font-bold text-[#1A1A2E] text-sm">🏦 Khoản Vay</h2>
+        <h2 className="font-bold text-[#1A1A2E] dark:text-white text-sm">🏦 Khoản Vay</h2>
         <Link href="/loans" className="flex items-center gap-0.5 text-[#1E90FF] text-xs font-semibold">
           Chi tiết <ChevronRight size={14} />
         </Link>
@@ -52,13 +52,13 @@ export default function LoanSummaryWidget() {
 
       {/* Stats row */}
       <div className="grid grid-cols-2 gap-2 mb-3">
-        <div className="bg-red-50 rounded-xl p-3">
+        <div className="bg-red-50 dark:bg-red-950/30 rounded-xl p-3">
           <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Còn phải trả tháng này</p>
           <p className={`text-base font-extrabold mt-0.5 ${unpaidThisMonth > 0 ? "text-[#F44336]" : "text-[#4CAF50]"}`}>
             {unpaidThisMonth > 0 ? formatVND(unpaidThisMonth) : "✅ Đã trả hết"}
           </p>
         </div>
-        <div className="bg-blue-50 rounded-xl p-3">
+        <div className="bg-blue-50 dark:bg-blue-950/30 rounded-xl p-3">
           <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Tổng còn phải trả</p>
           <p className="text-base font-extrabold text-[#1E90FF] mt-0.5">{formatVNDShort(totalDebt)}</p>
         </div>

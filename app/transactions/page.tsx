@@ -39,9 +39,9 @@ function TransactionsContent() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F0F8FF]">
+    <div className="min-h-screen bg-[#F0F8FF] dark:bg-[#0D1117]">
       {/* Header */}
-      <div className="bg-[#1E90FF] pt-12 pb-6 px-5 rounded-b-[32px]">
+      <div className="bg-[#1E90FF] safe-header pb-6 px-5 rounded-b-[32px]">
         <h1 className="text-white font-extrabold text-xl mb-4">Giao dịch</h1>
 
         {/* Summary row */}
@@ -79,7 +79,7 @@ function TransactionsContent() {
             placeholder="Tìm kiếm giao dịch..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-white rounded-2xl pl-9 pr-4 py-3 text-sm shadow-sm outline-none focus:ring-2 focus:ring-blue-200"
+            className="w-full bg-white dark:bg-[#161B27] dark:text-white dark:placeholder-gray-500 rounded-2xl pl-9 pr-4 py-3 text-sm shadow-sm outline-none focus:ring-2 focus:ring-blue-200"
           />
         </div>
 
@@ -96,7 +96,7 @@ function TransactionsContent() {
                     : f === "income"
                     ? "bg-[#4CAF50] text-white"
                     : "bg-[#F44336] text-white"
-                  : "bg-white text-gray-500"
+                  : "bg-white dark:bg-[#161B27] text-gray-500 dark:text-gray-400"
               }`}
             >
               {f === "all" ? "Tất cả" : f === "income" ? "Thu" : "Chi"}
@@ -107,7 +107,7 @@ function TransactionsContent() {
 
         {/* List */}
         {filtered.length > 0 ? (
-          <div className="card p-4 divide-y divide-gray-50">
+          <div className="card p-4 divide-y divide-gray-50 dark:divide-gray-700/50">
             {filtered.map((tx) => (
               <TransactionItem key={tx.id} transaction={tx} onDelete={deleteById} onEdit={openEditModal} />
             ))}

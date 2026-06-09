@@ -75,3 +75,32 @@ export const LENDER_TYPES = [
   { value: "personal" as LenderType, label: "Vay cá nhân", icon: "👤" },
   { value: "other" as LenderType, label: "Khác", icon: "📝" },
 ] as const;
+
+export interface Goal {
+  id: string;
+  name: string;
+  targetAmount: number;
+  savedAmount: number;
+  deadline: string | null; // YYYY-MM
+  note: string;
+  createdAt: string;
+}
+
+export interface Reminder {
+  id: string;
+  name: string;
+  dayOfMonth: number;
+  amountEstimate: number | null;
+  isActive: boolean;
+  note: string;
+  createdAt: string;
+}
+
+export interface CustomCategory {
+  id: string;
+  type: "income" | "expense";
+  name: string;
+  icon: string;
+  color: string;
+  createdAt: string;
+}

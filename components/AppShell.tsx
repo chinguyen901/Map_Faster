@@ -3,7 +3,8 @@ import { useState, useEffect, createContext, useContext, useCallback } from "rea
 import BottomNav from "./BottomNav";
 import TransactionModal from "./TransactionModal";
 import { Transaction, TransactionType } from "@/types";
-import { fetchTransactions, createTransaction, updateTransaction, deleteTransactionById } from "@/lib/api";
+import { fetchTransactions, createTransaction, updateTransaction, deleteTransactionById, fetchReminders } from "@/lib/api";
+import { calcStreak, calcMonthSummary, getLast6Months } from "@/lib/calculations";
 
 function getRecurringDateForMonth(month: string, day: number): string {
   const [y, m] = month.split("-").map(Number);
@@ -33,6 +34,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [recurringToast, setRecurringToast] = useState<string | null>(null);
+  const [milestoneToast, setMilestoneToast] = useState<string | null>(null);
+  const [reminderToast, setReminderToast] = useState<string | null>(null);
 
   useEffect(() => {
     fetchTransactions().then(async (data) => {
@@ -79,11 +82,82 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         if (created) newTxs.push(created);
       }
 
-      setTransactions([...newTxs, ...data]);
+      const allTxs = [...newTxs, ...data];
+      setTransactions(allTxs);
       setLoading(false);
+
       if (newTxs.length > 0) {
         setRecurringToast(`📅 Đã tự động thêm ${newTxs.length} giao dịch lặp lại tháng này`);
         setTimeout(() => setRecurringToast(null), 4000);
+      }
+
+      // Milestone detection
+      if (typeof window !== "undefined") {
+        const streak = calcStreak(allTxs);
+
+        const streakMilestones = [
+          { threshold: 30, key: "ms_s30", msg: "🏆 30 ngày streak! Bạn thật kiên trì tuyệt vời!" },
+          { threshold: 7, key: "ms_s7", msg: "🔥 7 ngày liên tiếp! Tuyệt vời!" },
+          { threshold: 3, key: "ms_s3", msg: "🔥 3 ngày liên tiếp! Hãy tiếp tục nhé!" },
+        ];
+
+        let milestoneMsg: string | null = null;
+        for (const m of streakMilestones) {
+          if (streak >= m.threshold && !localStorage.getItem(m.key)) {
+            localStorage.setItem(m.key, "1");
+            milestoneMsg = m.msg;
+            break;
+          }
+        }
+
+        // First positive month milestone
+        if (!milestoneMsg) {
+          const { balance } = calcMonthSummary(allTxs, currentMonth);
+          if (balance > 0 && !localStorage.getItem("ms_fp")) {
+            const prevMonths = getLast6Months().slice(0, 5);
+            const hadPrevPositive = prevMonths.some((m) => calcMonthSummary(data, m).balance > 0);
+            if (!hadPrevPositive) {
+              localStorage.setItem("ms_fp", "1");
+              milestoneMsg = "🎉 Tháng đầu tiên số dư dương! Chúc mừng bạn!";
+            }
+          }
+        }
+
+        if (milestoneMsg) {
+          const msg = milestoneMsg;
+          const delay = newTxs.length > 0 ? 5000 : 1500;
+          setTimeout(() => {
+            setMilestoneToast(msg);
+            setTimeout(() => setMilestoneToast(null), 4500);
+          }, delay);
+        }
+      }
+
+      // Reminder check — show once per day
+      const todayKey = `reminders_shown_${new Date().toISOString().split("T")[0]}`;
+      if (typeof window !== "undefined" && !localStorage.getItem(todayKey)) {
+        fetchReminders().then((reminders) => {
+          const today = new Date();
+          const todayDay = today.getDate();
+          const dueSoon = reminders.filter((r) => {
+            if (!r.isActive) return false;
+            const thisMonthDate = new Date(today.getFullYear(), today.getMonth(), r.dayOfMonth);
+            const diff = Math.ceil((thisMonthDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+            return diff >= 0 && diff <= 3;
+          });
+          if (dueSoon.length > 0) {
+            localStorage.setItem(todayKey, "1");
+            const names = dueSoon.map((r) => r.name).join(", ");
+            const msg = dueSoon.length === 1
+              ? `🔔 ${names} đến hạn ${dueSoon[0].dayOfMonth === todayDay ? "hôm nay" : "trong " + Math.ceil((new Date(today.getFullYear(), today.getMonth(), dueSoon[0].dayOfMonth).getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) + " ngày"}!`
+              : `🔔 ${dueSoon.length} hoá đơn sắp đến hạn: ${names}`;
+            const delay = 2500;
+            setTimeout(() => {
+              setReminderToast(msg);
+              setTimeout(() => setReminderToast(null), 5000);
+            }, delay);
+          }
+        });
       }
     });
   }, []);
@@ -136,6 +210,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       {recurringToast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] max-w-[360px] w-[90vw] bg-[#1A1A2E] text-white text-sm font-semibold px-4 py-3 rounded-2xl shadow-xl text-center">
           {recurringToast}
+        </div>
+      )}
+      {milestoneToast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] max-w-[360px] w-[90vw] bg-gradient-to-r from-[#1E90FF] to-[#1565C0] text-white text-sm font-semibold px-4 py-3 rounded-2xl shadow-xl text-center animate-bounce">
+          {milestoneToast}
+        </div>
+      )}
+      {reminderToast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] max-w-[360px] w-[90vw] bg-[#FF9800] text-white text-sm font-semibold px-4 py-3 rounded-2xl shadow-xl text-center">
+          {reminderToast}
         </div>
       )}
     </TxContext.Provider>

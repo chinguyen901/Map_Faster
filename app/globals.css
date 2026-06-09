@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 :root {
   --primary: #1E90FF;
@@ -9,6 +10,14 @@
   --card: #FFFFFF;
   --text-primary: #1A1A2E;
   --text-secondary: #6B7280;
+}
+
+.dark {
+  color-scheme: dark;
+  --bg: #0D1117;
+  --card: #161B27;
+  --text-primary: #E6EDF3;
+  --text-secondary: #8B949E;
 }
 
 * {
@@ -33,6 +42,16 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
+/* Safe top padding for page headers — accounts for notch/Dynamic Island */
+.safe-header {
+  padding-top: max(48px, calc(env(safe-area-inset-top) + 12px));
+}
+
+/* Safe top for auth sub-pages nav bar (back button row) */
+.safe-auth-nav {
+  padding-top: max(56px, calc(env(safe-area-inset-top) + 8px));
+}
+
 /* Smooth scrolling */
 .scroll-area {
   overflow-y: auto;
@@ -51,4 +70,8 @@ body {
   background: var(--card);
   border-radius: 16px;
   box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+}
+
+.dark .card {
+  box-shadow: 0 2px 12px rgba(0,0,0,0.4);
 }

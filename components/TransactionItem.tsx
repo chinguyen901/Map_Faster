@@ -34,7 +34,7 @@ export default function TransactionItem({ transaction, onDelete, onEdit }: Props
         className="flex-1 min-w-0 text-left active:opacity-70 transition-opacity"
         disabled={!onEdit}
       >
-        <p className="font-semibold text-[#1A1A2E] text-sm truncate">
+        <p className="font-semibold text-[#1A1A2E] dark:text-white text-sm truncate">
           {transaction.note || transaction.category}
         </p>
         <p className="text-xs text-gray-400 mt-0.5">

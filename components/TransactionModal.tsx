@@ -1,8 +1,11 @@
 "use client";
 import { useState, useEffect } from "react";
-import { X } from "lucide-react";
-import { Transaction, TransactionType, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "@/types";
+import { X, Settings2 } from "lucide-react";
+import Link from "next/link";
+import { Transaction, TransactionType, CustomCategory } from "@/types";
 import { getTodayISO } from "@/lib/formatters";
+import { fetchCustomCategories } from "@/lib/api";
+import { getMergedCategories } from "@/lib/categories";
 
 interface Props {
   open: boolean;
@@ -19,9 +22,17 @@ export default function TransactionModal({ open, onClose, onSave, editingTransac
   const [date, setDate] = useState(getTodayISO());
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringDay, setRecurringDay] = useState<number>(1);
+  const [customCats, setCustomCats] = useState<CustomCategory[]>([]);
 
   const isEditing = !!editingTransaction;
-  const categories = type === "expense" ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
+  const categories = getMergedCategories(type, customCats);
+
+  // Fetch custom categories when modal opens
+  useEffect(() => {
+    if (open) {
+      fetchCustomCategories().then(setCustomCats);
+    }
+  }, [open]);
 
   // Pre-fill form when editing
   useEffect(() => {
@@ -72,10 +83,10 @@ export default function TransactionModal({ open, onClose, onSave, editingTransac
   return (
     <>
       {/* Backdrop — full screen */}
-      <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm" onClick={onClose} />
 
       {/* Card — anchored to bottom, centered, max 430px */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pointer-events-none">
+      <div className="fixed bottom-0 left-0 right-0 z-[60] flex justify-center pointer-events-none">
         <div
           className="w-full max-w-[430px] bg-white rounded-t-3xl shadow-2xl pointer-events-auto"
           style={{ maxHeight: "90dvh", overflowY: "auto" }}
@@ -137,8 +148,17 @@ export default function TransactionModal({ open, onClose, onSave, editingTransac
 
             {/* Category */}
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Danh mục</label>
-              <div className="mt-2 grid grid-cols-4 gap-2">
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Danh mục</label>
+                <Link
+                  href="/categories"
+                  onClick={onClose}
+                  className="flex items-center gap-1 text-[10px] text-gray-400 hover:text-[#1E90FF]"
+                >
+                  <Settings2 size={11} /> Quản lý
+                </Link>
+              </div>
+              <div className="mt-1 grid grid-cols-4 gap-2">
                 {categories.map((cat) => (
                   <button
                     key={cat.name}

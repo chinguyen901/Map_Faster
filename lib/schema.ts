@@ -63,6 +63,44 @@ export const budgets = pgTable("budgets", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const goals = pgTable("goals", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  name: varchar("name", { length: 100 }).notNull(),
+  targetAmount: bigint("target_amount", { mode: "number" }).notNull(),
+  savedAmount: bigint("saved_amount", { mode: "number" }).default(0).notNull(),
+  deadline: varchar("deadline", { length: 7 }),
+  note: text("note").default("").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const reminders = pgTable("reminders", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  name: varchar("name", { length: 100 }).notNull(),
+  dayOfMonth: integer("day_of_month").notNull(),
+  amountEstimate: bigint("amount_estimate", { mode: "number" }),
+  isActive: boolean("is_active").default(true).notNull(),
+  note: text("note").default("").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const customCategories = pgTable("custom_categories", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  type: varchar("type", { length: 10 }).notNull(), // 'income' | 'expense'
+  name: varchar("name", { length: 50 }).notNull(),
+  icon: varchar("icon", { length: 10 }).notNull(),  // emoji character
+  color: varchar("color", { length: 7 }).notNull(), // hex color
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type OtpCode = typeof otpCodes.$inferSelect;

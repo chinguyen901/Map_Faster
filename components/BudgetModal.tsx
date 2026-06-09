@@ -36,64 +36,67 @@ export default function BudgetModal({ open, onClose, onSave, onDelete, editingCa
   const isEditing = !!editingCategory;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end">
+    <div className="fixed inset-0 z-[60] flex items-end">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative w-full max-w-[430px] mx-auto bg-white rounded-t-3xl p-6 max-h-[90dvh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="font-bold text-[#1A1A2E] text-base">
-            {isEditing ? "Sửa ngân sách" : "Đặt ngân sách"}
-          </h3>
-          <button onClick={onClose} className="p-1 text-gray-400"><X size={20} /></button>
-        </div>
+      <div className="relative w-full max-w-[430px] mx-auto bg-white rounded-t-3xl flex flex-col max-h-[90dvh]">
+        {/* Scrollable content */}
+        <div className="overflow-y-auto flex-1 px-6 pt-6 pb-2">
+          <div className="flex items-center justify-between mb-5">
+            <h3 className="font-bold text-[#1A1A2E] text-base">
+              {isEditing ? "Sửa ngân sách" : "Đặt ngân sách"}
+            </h3>
+            <button onClick={onClose} className="p-1 text-gray-400"><X size={20} /></button>
+          </div>
 
-        {!isEditing && (
-          <div className="mb-4">
-            <p className="text-xs font-semibold text-gray-500 mb-2">Danh mục chi</p>
-            <div className="grid grid-cols-2 gap-2">
-              {EXPENSE_CATEGORIES.map((cat) => (
-                <button
-                  key={cat.name}
-                  onClick={() => setCategory(cat.name)}
-                  className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all ${
-                    category === cat.name
-                      ? "border-[#1E90FF] bg-blue-50 text-[#1E90FF]"
-                      : "border-gray-200 text-gray-600 bg-white"
-                  }`}
-                >
-                  <span className="text-base">{cat.icon}</span>
-                  <span>{cat.name}</span>
-                </button>
-              ))}
+          {!isEditing && (
+            <div className="mb-4">
+              <p className="text-xs font-semibold text-gray-500 mb-2">Danh mục chi</p>
+              <div className="grid grid-cols-2 gap-2">
+                {EXPENSE_CATEGORIES.map((cat) => (
+                  <button
+                    key={cat.name}
+                    onClick={() => setCategory(cat.name)}
+                    className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all ${
+                      category === cat.name
+                        ? "border-[#1E90FF] bg-blue-50 text-[#1E90FF]"
+                        : "border-gray-200 text-gray-600 bg-white"
+                    }`}
+                  >
+                    <span className="text-base">{cat.icon}</span>
+                    <span>{cat.name}</span>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
-
-        {isEditing && (
-          <div className="mb-4 flex items-center gap-2 px-3 py-2.5 bg-blue-50 rounded-xl">
-            <span className="text-base">
-              {EXPENSE_CATEGORIES.find((c) => c.name === editingCategory)?.icon}
-            </span>
-            <span className="text-sm font-semibold text-[#1E90FF]">{editingCategory}</span>
-          </div>
-        )}
-
-        <div className="mb-6">
-          <p className="text-xs font-semibold text-gray-500 mb-2">Ngân sách hàng tháng</p>
-          <input
-            type="number"
-            inputMode="numeric"
-            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base font-semibold focus:outline-none focus:border-[#1E90FF] transition-colors"
-            placeholder="Nhập số tiền..."
-            value={amountStr}
-            onChange={(e) => setAmountStr(e.target.value)}
-            autoFocus
-          />
-          {parsedAmount > 0 && (
-            <p className="text-xs text-gray-400 mt-1.5">{formatVND(parsedAmount)}</p>
           )}
+
+          {isEditing && (
+            <div className="mb-4 flex items-center gap-2 px-3 py-2.5 bg-blue-50 rounded-xl">
+              <span className="text-base">
+                {EXPENSE_CATEGORIES.find((c) => c.name === editingCategory)?.icon}
+              </span>
+              <span className="text-sm font-semibold text-[#1E90FF]">{editingCategory}</span>
+            </div>
+          )}
+
+          <div className="mb-2">
+            <p className="text-xs font-semibold text-gray-500 mb-2">Ngân sách hàng tháng</p>
+            <input
+              type="number"
+              inputMode="numeric"
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base font-semibold focus:outline-none focus:border-[#1E90FF] transition-colors"
+              placeholder="Nhập số tiền..."
+              value={amountStr}
+              onChange={(e) => setAmountStr(e.target.value)}
+            />
+            {parsedAmount > 0 && (
+              <p className="text-xs text-gray-400 mt-1.5">{formatVND(parsedAmount)}</p>
+            )}
+          </div>
         </div>
 
-        <div className="flex gap-2">
+        {/* Sticky buttons — always visible above keyboard */}
+        <div className="px-6 pt-3 pb-6 flex gap-2 flex-shrink-0" style={{ paddingBottom: "max(24px, env(safe-area-inset-bottom))" }}>
           {isEditing && onDelete && (
             <button
               onClick={onDelete}
