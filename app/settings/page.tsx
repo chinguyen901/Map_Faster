@@ -3,14 +3,31 @@ import { useState, useEffect } from "react";
 import { Trash2, Download, Info, Shield, LogOut, ChevronRight, Landmark, Moon, Sun, Target, Bell, Tag } from "lucide-react";
 import Link from "next/link";
 import AppShell, { useTx } from "@/components/AppShell";
-import { logout } from "@/lib/api";
+import BeepartnerLinkModal from "@/components/BeepartnerLinkModal";
+import { logout, fetchUserProfile } from "@/lib/api";
 import { formatVND } from "@/lib/formatters";
 import { calcMonthSummary, getLast6Months } from "@/lib/calculations";
 
 function SettingsContent() {
-  const { transactions } = useTx();
+  const { transactions, bePartnerPhone: ctxBePhone } = useTx();
   const [showConfirm, setShowConfirm] = useState(false);
   const [isDark, setIsDark] = useState(false);
+  const [bePartnerPhone, setBePartnerPhone] = useState<string | null>(ctxBePhone);
+  const [userPhone, setUserPhone] = useState("");
+  const [showBeModal, setShowBeModal] = useState(false);
+
+  useEffect(() => {
+    setBePartnerPhone(ctxBePhone);
+  }, [ctxBePhone]);
+
+  useEffect(() => {
+    fetchUserProfile().then((p) => {
+      if (p) {
+        setUserPhone(p.phone);
+        setBePartnerPhone(p.bePartnerPhone);
+      }
+    });
+  }, []);
 
   const last6 = getLast6Months();
   const currentMonthSummary = calcMonthSummary(transactions, last6[5]);
@@ -136,6 +153,19 @@ function SettingsContent() {
             <ChevronRight size={16} className="text-gray-400" />
           </Link>
 
+          {/* Beepartner */}
+          <button
+            onClick={() => setShowBeModal(true)}
+            className="w-full flex items-center gap-3 py-3.5 px-4 bg-[#F0F8FF] dark:bg-gray-800/60 rounded-2xl active:bg-blue-50 transition-colors"
+          >
+            <span className="text-lg">🐝</span>
+            <div className="flex-1 text-left">
+              <span className="text-sm font-semibold text-[#1A1A2E] dark:text-white block">Tài khoản Beepartner</span>
+              <span className="text-xs text-gray-400">{bePartnerPhone ? `Đã liên kết · ${bePartnerPhone}` : "Chưa liên kết"}</span>
+            </div>
+            <ChevronRight size={16} className="text-gray-400" />
+          </button>
+
           {/* Dark mode toggle */}
           <button
             onClick={toggleDark}
@@ -201,6 +231,15 @@ function SettingsContent() {
           Thu Chi Tiết Kiệm v2.0 · Dữ liệu lưu trên cloud
         </p>
       </div>
+
+      <BeepartnerLinkModal
+        open={showBeModal}
+        onClose={() => setShowBeModal(false)}
+        linkedPhone={bePartnerPhone}
+        userPhone={userPhone}
+        onLink={(phone) => setBePartnerPhone(phone)}
+        onUnlink={() => setBePartnerPhone(null)}
+      />
     </div>
   );
 }

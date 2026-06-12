@@ -12,9 +12,11 @@ interface Props {
   onClose: () => void;
   onSave: (data: { type: TransactionType; category: string; amount: number; note: string; date: string; isRecurring: boolean; recurringDay: number | null }) => void;
   editingTransaction?: Transaction | null;
+  initialType?: TransactionType;
+  initialCategory?: string;
 }
 
-export default function TransactionModal({ open, onClose, onSave, editingTransaction }: Props) {
+export default function TransactionModal({ open, onClose, onSave, editingTransaction, initialType, initialCategory }: Props) {
   const [type, setType] = useState<TransactionType>("expense");
   const [category, setCategory] = useState("");
   const [amount, setAmount] = useState("");
@@ -63,8 +65,8 @@ export default function TransactionModal({ open, onClose, onSave, editingTransac
   }
 
   function resetForm() {
-    setType("expense");
-    setCategory("");
+    setType(initialType ?? "expense");
+    setCategory(initialCategory ?? "");
     setAmount("");
     setNote("");
     setDate(getTodayISO());

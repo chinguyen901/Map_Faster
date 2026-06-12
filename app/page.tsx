@@ -8,6 +8,7 @@ import AppShell, { useTx } from "@/components/AppShell";
 import TransactionItem from "@/components/TransactionItem";
 import LoanSummaryWidget from "@/components/LoanSummaryWidget";
 import HealthScoreWidget from "@/components/HealthScoreWidget";
+import BeepartnerWidget from "@/components/BeepartnerWidget";
 import { calcMonthSummary, calcWeeklyData, calcMonthEndForecast, calcStreak } from "@/lib/calculations";
 import { formatVND, formatVNDShort, formatMonth, getCurrentMonth } from "@/lib/formatters";
 
@@ -148,6 +149,9 @@ function HomeContent() {
 
         {/* Loan summary widget */}
         <LoanSummaryWidget />
+
+        {/* Beepartner income widget */}
+        <BeepartnerWidget month={month} />
 
         {/* Health score widget */}
         <HealthScoreWidget />

@@ -362,3 +362,49 @@ export async function deleteCustomCategoryById(id: string): Promise<boolean> {
   if (res.status === 401) { window.location.href = "/login"; return false; }
   return res.ok;
 }
+
+// --- User Profile / bePartner ---
+
+export interface UserProfile {
+  phone: string;
+  bePartnerPhone: string | null;
+  bePartnerMonthlyTarget: number | null;
+}
+
+export async function fetchUserProfile(): Promise<UserProfile | null> {
+  const res = await fetch("/api/user/me", { credentials: "include" });
+  if (res.status === 401) { window.location.href = "/login"; return null; }
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function linkBeepartner(phone: string): Promise<boolean> {
+  const res = await fetch("/api/user/beepartner", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ phone }),
+  });
+  if (res.status === 401) { window.location.href = "/login"; return false; }
+  return res.ok;
+}
+
+export async function unlinkBeepartner(): Promise<boolean> {
+  const res = await fetch("/api/user/beepartner", {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (res.status === 401) { window.location.href = "/login"; return false; }
+  return res.ok;
+}
+
+export async function updateBeepartnerTarget(target: number | null): Promise<boolean> {
+  const res = await fetch("/api/user/beepartner", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ monthlyTarget: target }),
+  });
+  if (res.status === 401) { window.location.href = "/login"; return false; }
+  return res.ok;
+}

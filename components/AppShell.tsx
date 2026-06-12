@@ -3,7 +3,7 @@ import { useState, useEffect, createContext, useContext, useCallback } from "rea
 import BottomNav from "./BottomNav";
 import TransactionModal from "./TransactionModal";
 import { Transaction, TransactionType } from "@/types";
-import { fetchTransactions, createTransaction, updateTransaction, deleteTransactionById, fetchReminders } from "@/lib/api";
+import { fetchTransactions, createTransaction, updateTransaction, deleteTransactionById, fetchReminders, fetchUserProfile } from "@/lib/api";
 import { calcStreak, calcMonthSummary, getLast6Months } from "@/lib/calculations";
 
 function getRecurringDateForMonth(month: string, day: number): string {
@@ -13,11 +13,20 @@ function getRecurringDateForMonth(month: string, day: number): string {
   return `${month}-${String(actualDay).padStart(2, "0")}`;
 }
 
+interface ModalDefaults {
+  type?: TransactionType;
+  category?: string;
+}
+
 interface TxContextType {
   transactions: Transaction[];
   loading: boolean;
   deleteById: (id: string) => void;
   openEditModal: (tx: Transaction) => void;
+  openAddModal: (defaults?: ModalDefaults) => void;
+  bePartnerPhone: string | null;
+  bePartnerMonthlyTarget: number | null;
+  setBePartnerMonthlyTarget: (target: number | null) => void;
 }
 
 export const TxContext = createContext<TxContextType>({
@@ -25,6 +34,10 @@ export const TxContext = createContext<TxContextType>({
   loading: true,
   deleteById: () => {},
   openEditModal: () => {},
+  openAddModal: () => {},
+  bePartnerPhone: null,
+  bePartnerMonthlyTarget: null,
+  setBePartnerMonthlyTarget: () => {},
 });
 export const useTx = () => useContext(TxContext);
 
@@ -33,9 +46,21 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [modalDefaults, setModalDefaults] = useState<ModalDefaults>({});
+  const [bePartnerPhone, setBePartnerPhone] = useState<string | null>(null);
+  const [bePartnerMonthlyTarget, setBePartnerMonthlyTarget] = useState<number | null>(null);
   const [recurringToast, setRecurringToast] = useState<string | null>(null);
   const [milestoneToast, setMilestoneToast] = useState<string | null>(null);
   const [reminderToast, setReminderToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchUserProfile().then((profile) => {
+      if (profile) {
+        setBePartnerPhone(profile.bePartnerPhone);
+        setBePartnerMonthlyTarget(profile.bePartnerMonthlyTarget);
+      }
+    });
+  }, []);
 
   useEffect(() => {
     fetchTransactions().then(async (data) => {
@@ -162,8 +187,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const openAddModal = useCallback(() => {
+  const openAddModal = useCallback((defaults?: ModalDefaults) => {
     setEditingTransaction(null);
+    setModalDefaults(defaults ?? {});
     setModalOpen(true);
   }, []);
 
@@ -198,14 +224,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <TxContext.Provider value={{ transactions, loading, deleteById, openEditModal }}>
+    <TxContext.Provider value={{ transactions, loading, deleteById, openEditModal, openAddModal, bePartnerPhone, bePartnerMonthlyTarget, setBePartnerMonthlyTarget }}>
       <div className="safe-bottom">{children}</div>
-      <BottomNav onAddClick={openAddModal} />
+      <BottomNav onAddClick={() => openAddModal()} />
       <TransactionModal
         open={modalOpen}
         onClose={handleClose}
         onSave={handleSave}
         editingTransaction={editingTransaction}
+        initialType={modalDefaults.type}
+        initialCategory={modalDefaults.category}
       />
       {recurringToast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] max-w-[360px] w-[90vw] bg-[#1A1A2E] text-white text-sm font-semibold px-4 py-3 rounded-2xl shadow-xl text-center">

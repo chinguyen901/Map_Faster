@@ -6,6 +6,8 @@ export const users = pgTable("users", {
   email: varchar("email", { length: 255 }).notNull(),
   passwordHash: varchar("password_hash", { length: 255 }).notNull(),
   isVerified: boolean("is_verified").default(false).notNull(),
+  bePartnerPhone: varchar("be_partner_phone", { length: 20 }),
+  bePartnerMonthlyTarget: bigint("be_partner_monthly_target", { mode: "number" }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
