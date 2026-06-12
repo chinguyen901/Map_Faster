@@ -1,7 +1,6 @@
 "use client";
 import { useMemo, useState } from "react";
 import { Plus, Pencil, Check, X } from "lucide-react";
-import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { useTx } from "@/components/AppShell";
 import { formatVND, formatVNDShort, getCurrentMonth } from "@/lib/formatters";
 import { updateBeepartnerTarget } from "@/lib/api";
@@ -17,7 +16,7 @@ function getDaysInfo(month: string) {
   const isCurrentMonth = month === `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
   const dayOfMonth = isCurrentMonth ? today.getDate() : daysInMonth;
   const daysRemaining = isCurrentMonth ? Math.max(0, daysInMonth - dayOfMonth + 1) : 0;
-  return { daysInMonth, dayOfMonth, daysRemaining, isCurrentMonth };
+  return { daysRemaining, isCurrentMonth };
 }
 
 export default function BeepartnerWidget({ month }: Props) {
@@ -46,13 +45,6 @@ export default function BeepartnerWidget({ month }: Props) {
   const dailyNeeded = hasTarget && !achieved && daysRemaining > 0
     ? Math.ceil(remaining / daysRemaining)
     : 0;
-
-  const chartData = hasTarget
-    ? [
-        { name: "Đã đạt", value: Math.min(total, bePartnerMonthlyTarget!), color: "#FFD700" },
-        { name: "Còn thiếu", value: Math.max(0, bePartnerMonthlyTarget! - total), color: "#E5E7EB" },
-      ]
-    : [{ name: "Đã đạt", value: total || 1, color: "#FFD700" }];
 
   function startEdit() {
     setTargetInput(bePartnerMonthlyTarget ? bePartnerMonthlyTarget.toLocaleString("vi-VN") : "");
@@ -112,23 +104,16 @@ export default function BeepartnerWidget({ month }: Props) {
               autoFocus
               className="flex-1 border border-gray-200 dark:border-gray-600 bg-white dark:bg-[#0D1117] rounded-xl px-3 py-2.5 text-sm text-[#1A1A2E] dark:text-white focus:outline-none focus:border-[#FFD700]"
             />
-            <button
-              onClick={() => setEditingTarget(false)}
-              className="p-2.5 rounded-xl bg-gray-100 dark:bg-gray-700"
-            >
+            <button onClick={() => setEditingTarget(false)} className="p-2.5 rounded-xl bg-gray-100 dark:bg-gray-700">
               <X size={16} className="text-gray-500" />
             </button>
-            <button
-              onClick={saveTarget}
-              disabled={saving}
-              className="p-2.5 rounded-xl bg-[#FFD700] disabled:opacity-50"
-            >
+            <button onClick={saveTarget} disabled={saving} className="p-2.5 rounded-xl bg-[#FFD700] disabled:opacity-50">
               <Check size={16} className="text-yellow-900" />
             </button>
           </div>
         </div>
       ) : !hasTarget ? (
-        /* No target — show simple stats + set target prompt */
+        /* No target — simple stats + set target prompt */
         <>
           {beIncome.length > 0 && (
             <div className="bg-[#FFD700]/10 dark:bg-yellow-950/30 rounded-xl p-3 mb-3">
@@ -152,65 +137,47 @@ export default function BeepartnerWidget({ month }: Props) {
           )}
         </>
       ) : (
-        /* Has target — show donut chart + progress stats */
+        /* Has target — progress bar + 3-stat grid */
         <>
-          <div className="flex items-center gap-3 mb-3">
-            {/* Donut chart */}
-            <div className="flex-shrink-0 relative" style={{ width: 110, height: 110 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={chartData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={32}
-                    outerRadius={50}
-                    startAngle={90}
-                    endAngle={-270}
-                    dataKey="value"
-                    strokeWidth={0}
-                  >
-                    {chartData.map((entry, i) => (
-                      <Cell key={i} fill={entry.color} />
-                    ))}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-              {/* Center % */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="font-extrabold text-lg leading-none text-[#1A1A2E] dark:text-white">
-                  {percentage}%
-                </span>
-                {achieved && <span className="text-[9px] text-[#4CAF50] font-bold mt-0.5">🎉</span>}
-              </div>
+          {/* Progress bar */}
+          <div className="mb-3">
+            <div className="flex justify-between text-xs text-gray-400 mb-1.5">
+              <span>Tiến độ</span>
+              <span className={`font-bold ${achieved ? "text-[#4CAF50]" : "text-[#1A1A2E] dark:text-white"}`}>
+                {percentage}% {achieved && "🎉"}
+              </span>
             </div>
+            <div className="w-full h-3 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${achieved ? "bg-[#4CAF50]" : "bg-[#FFD700]"}`}
+                style={{ width: `${percentage}%` }}
+              />
+            </div>
+          </div>
 
-            {/* Stats */}
-            <div className="flex-1 space-y-2 min-w-0">
-              <div className="bg-[#FFD700]/10 dark:bg-yellow-950/30 rounded-xl p-2.5">
-                <p className="text-[10px] text-gray-400 font-medium">Đã đạt</p>
-                <p className={`font-bold text-sm mt-0.5 ${achieved ? "text-[#4CAF50]" : "text-yellow-600 dark:text-yellow-400"}`}>
-                  {formatVNDShort(total)}
-                </p>
-              </div>
-              <div className="bg-[#F0F8FF] dark:bg-gray-800/60 rounded-xl p-2.5 flex items-start justify-between">
-                <div>
-                  <p className="text-[10px] text-gray-400 font-medium">Mục tiêu</p>
-                  <p className="font-bold text-[#1A1A2E] dark:text-white text-sm mt-0.5">
-                    {formatVNDShort(bePartnerMonthlyTarget!)}
-                  </p>
-                </div>
-                {isCurrentMonth && (
-                  <button onClick={startEdit} className="mt-0.5 p-1 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600">
-                    <Pencil size={12} className="text-gray-400" />
-                  </button>
-                )}
-              </div>
-              {!achieved && remaining > 0 && (
-                <div className="bg-red-50 dark:bg-red-950/30 rounded-xl p-2.5">
-                  <p className="text-[10px] text-gray-400 font-medium">Còn thiếu</p>
-                  <p className="font-bold text-[#F44336] text-sm mt-0.5">{formatVNDShort(remaining)}</p>
-                </div>
+          {/* 3-stat row */}
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            <div className="bg-[#FFD700]/10 dark:bg-yellow-950/30 rounded-xl p-2.5">
+              <p className="text-[10px] text-gray-400">Đã đạt</p>
+              <p className={`font-bold text-xs mt-0.5 ${achieved ? "text-[#4CAF50]" : "text-yellow-600 dark:text-yellow-400"}`}>
+                {formatVNDShort(total)}
+              </p>
+            </div>
+            <div className="bg-red-50 dark:bg-red-950/30 rounded-xl p-2.5">
+              <p className="text-[10px] text-gray-400">Còn thiếu</p>
+              <p className="font-bold text-[#F44336] text-xs mt-0.5">
+                {achieved ? <span className="text-[#4CAF50]">—</span> : formatVNDShort(remaining)}
+              </p>
+            </div>
+            <div className="bg-[#F0F8FF] dark:bg-gray-800/60 rounded-xl p-2.5 relative">
+              <p className="text-[10px] text-gray-400">Mục tiêu</p>
+              <p className="font-bold text-[#1A1A2E] dark:text-white text-xs mt-0.5">
+                {formatVNDShort(bePartnerMonthlyTarget!)}
+              </p>
+              {isCurrentMonth && (
+                <button onClick={startEdit} className="absolute top-1.5 right-1.5 p-0.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600">
+                  <Pencil size={10} className="text-gray-400" />
+                </button>
               )}
             </div>
           </div>
@@ -227,12 +194,12 @@ export default function BeepartnerWidget({ month }: Props) {
               <p className="text-xs text-yellow-700 dark:text-yellow-400">
                 💡 Cần trung bình{" "}
                 <span className="font-bold">{formatVNDShort(dailyNeeded)}/ngày</span>{" "}
-                trong <span className="font-bold">{daysRemaining} ngày</span> còn lại để đạt mục tiêu
+                trong <span className="font-bold">{daysRemaining} ngày</span> còn lại
               </p>
             </div>
           ) : isCurrentMonth && daysRemaining === 0 && !achieved ? (
             <div className="bg-gray-50 dark:bg-gray-800/60 rounded-xl px-3 py-2.5">
-              <p className="text-xs text-gray-500 text-center">Tháng đã kết thúc — còn thiếu {formatVNDShort(remaining)}</p>
+              <p className="text-xs text-gray-500 text-center">Tháng đã kết thúc · Còn thiếu {formatVNDShort(remaining)}</p>
             </div>
           ) : null}
         </>

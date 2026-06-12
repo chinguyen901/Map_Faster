@@ -1,6 +1,6 @@
 "use client";
 import { useMemo, useState } from "react";
-import { TrendingUp, TrendingDown, Wallet, ChevronLeft, ChevronRight } from "lucide-react";
+import { TrendingUp, TrendingDown, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell
 } from "recharts";
@@ -155,29 +155,6 @@ function HomeContent() {
 
         {/* Health score widget */}
         <HealthScoreWidget />
-
-        {/* Summary message */}
-        <div className={`rounded-2xl p-4 flex items-center gap-3 ${
-          isPositive
-            ? "bg-green-50 dark:bg-green-950/30 border border-green-100 dark:border-green-900/30"
-            : "bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/30"
-        }`}>
-          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${
-            isPositive ? "bg-green-100 dark:bg-green-900/50" : "bg-red-100 dark:bg-red-900/50"
-          }`}>
-            <Wallet size={20} className={isPositive ? "text-green-600" : "text-red-500"} />
-          </div>
-          <div>
-            <p className={`font-bold text-sm ${isPositive ? "text-green-700 dark:text-green-300" : "text-red-600 dark:text-red-300"}`}>
-              {isPositive
-                ? `Tháng này bạn tiết kiệm được ${formatVND(summary.balance)}`
-                : `Tháng này bạn bội chi ${formatVND(Math.abs(summary.balance))}`}
-            </p>
-            <p className="text-xs text-gray-500 mt-0.5">
-              {isPositive ? "Tuyệt vời! Hãy tiếp tục duy trì 🎉" : "Hãy cẩn thận hơn với chi tiêu 💪"}
-            </p>
-          </div>
-        </div>
 
         {/* Recent transactions */}
         {recent.length > 0 && (
