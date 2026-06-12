@@ -1,11 +1,34 @@
 "use client";
-import { useState, useEffect } from "react";
-import { X, Settings2 } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { X, Settings2, Mic } from "lucide-react";
 import Link from "next/link";
 import { Transaction, TransactionType, CustomCategory } from "@/types";
 import { getTodayISO } from "@/lib/formatters";
 import { fetchCustomCategories } from "@/lib/api";
 import { getMergedCategories } from "@/lib/categories";
+import { parseVoiceInput } from "@/lib/voiceParser";
+
+// Web Speech API — not in standard TypeScript lib
+interface ISpeechRecognitionEvent {
+  readonly results: { [index: number]: { [index: number]: { transcript: string } } };
+}
+interface ISpeechRecognition extends EventTarget {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  start(): void;
+  stop(): void;
+  abort(): void;
+  onresult: ((event: ISpeechRecognitionEvent) => void) | null;
+  onerror: ((event: { error: string }) => void) | null;
+  onend: (() => void) | null;
+}
+declare global {
+  interface Window {
+    SpeechRecognition: { new(): ISpeechRecognition };
+    webkitSpeechRecognition: { new(): ISpeechRecognition };
+  }
+}
 
 interface Props {
   open: boolean;
@@ -25,16 +48,72 @@ export default function TransactionModal({ open, onClose, onSave, editingTransac
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringDay, setRecurringDay] = useState<number>(1);
   const [customCats, setCustomCats] = useState<CustomCategory[]>([]);
+  const [isListening, setIsListening] = useState(false);
+  const [voiceToast, setVoiceToast] = useState("");
+  const [speechSupported, setSpeechSupported] = useState(false);
+  const recognitionRef = useRef<ISpeechRecognition | null>(null);
+  const voiceToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isEditing = !!editingTransaction;
   const categories = getMergedCategories(type, customCats);
 
-  // Fetch custom categories when modal opens
+  // Feature-detect SpeechRecognition once on mount
+  useEffect(() => {
+    setSpeechSupported(
+      typeof window !== "undefined" &&
+        ("SpeechRecognition" in window || "webkitSpeechRecognition" in window)
+    );
+  }, []);
+
+  // Fetch custom categories when modal opens; abort recognition if modal closes
   useEffect(() => {
     if (open) {
       fetchCustomCategories().then(setCustomCats);
+    } else {
+      recognitionRef.current?.abort();
+      setIsListening(false);
     }
   }, [open]);
+
+  function startVoiceInput() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SR();
+    recognition.lang = "vi-VN";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognitionRef.current = recognition;
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      const parsed = parseVoiceInput(transcript, customCats);
+      if (parsed.type) setType(parsed.type);
+      if (parsed.amount) handleAmountChange(String(parsed.amount));
+      if (parsed.category) setCategory(parsed.category);
+      setNote(parsed.note);
+      const display = transcript.length > 60 ? transcript.slice(0, 57) + "..." : transcript;
+      setVoiceToast(display);
+      if (voiceToastTimer.current) clearTimeout(voiceToastTimer.current);
+      voiceToastTimer.current = setTimeout(() => setVoiceToast(""), 3500);
+    };
+
+    recognition.onerror = (event) => {
+      setIsListening(false);
+      if (event.error === "not-allowed") setVoiceToast("⚠️ Vui lòng cho phép truy cập microphone");
+      else if (event.error === "no-speech") setVoiceToast("Không nghe thấy gì, thử lại nhé");
+      if (voiceToastTimer.current) clearTimeout(voiceToastTimer.current);
+      voiceToastTimer.current = setTimeout(() => setVoiceToast(""), 3000);
+    };
+
+    recognition.onend = () => setIsListening(false);
+
+    recognition.start();
+    setIsListening(true);
+  }
+
+  function stopVoiceInput() {
+    recognitionRef.current?.stop();
+    setIsListening(false);
+  }
 
   // Pre-fill form when editing
   useEffect(() => {
@@ -72,6 +151,7 @@ export default function TransactionModal({ open, onClose, onSave, editingTransac
     setDate(getTodayISO());
     setIsRecurring(false);
     setRecurringDay(1);
+    setVoiceToast("");
   }
 
   function handleAmountChange(val: string) {
@@ -103,10 +183,33 @@ export default function TransactionModal({ open, onClose, onSave, editingTransac
             <h2 className="text-lg font-bold text-[#1A1A2E]">
               {isEditing ? "Sửa giao dịch" : "Thêm giao dịch"}
             </h2>
-            <button onClick={onClose} className="p-1.5 rounded-full hover:bg-gray-100 active:bg-gray-200">
-              <X size={20} className="text-gray-500" />
-            </button>
+            <div className="flex items-center gap-2">
+              {speechSupported && (
+                <button
+                  type="button"
+                  onClick={isListening ? stopVoiceInput : startVoiceInput}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                    isListening
+                      ? "bg-red-500 text-white animate-pulse"
+                      : "bg-blue-50 text-[#1E90FF] hover:bg-blue-100 active:bg-blue-200"
+                  }`}
+                >
+                  <Mic size={13} />
+                  {isListening ? "Đang nghe..." : "Nói nhanh"}
+                </button>
+              )}
+              <button onClick={onClose} className="p-1.5 rounded-full hover:bg-gray-100 active:bg-gray-200">
+                <X size={20} className="text-gray-500" />
+              </button>
+            </div>
           </div>
+
+          {/* Voice transcript toast */}
+          {voiceToast && (
+            <div className="mx-5 mb-2 px-3 py-2 bg-blue-50 border border-blue-100 rounded-xl text-xs text-[#1E90FF] leading-snug">
+              🎤 &quot;{voiceToast}&quot;
+            </div>
+          )}
 
           {/* Type Toggle */}
           <div className="mx-5 mb-4 flex rounded-2xl bg-gray-100 p-1">
