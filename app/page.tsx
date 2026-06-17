@@ -1,29 +1,79 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { TrendingUp, TrendingDown, ChevronLeft, ChevronRight } from "lucide-react";
-import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell
-} from "recharts";
 import AppShell, { useTx } from "@/components/AppShell";
 import TransactionItem from "@/components/TransactionItem";
 import LoanSummaryWidget from "@/components/LoanSummaryWidget";
 import HealthScoreWidget from "@/components/HealthScoreWidget";
 import BeepartnerWidget from "@/components/BeepartnerWidget";
-import { calcMonthSummary, calcWeeklyData, calcMonthEndForecast, calcStreak } from "@/lib/calculations";
-import { formatVND, formatVNDShort, formatMonth, getCurrentMonth } from "@/lib/formatters";
+import { calcMonthSummary, calcMonthEndForecast, calcStreak } from "@/lib/calculations";
+import { formatVND, formatVNDShort, formatMonth, getCurrentMonth, getTodayISO } from "@/lib/formatters";
+
+const CAL_HEADERS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
+
+function fmtCal(amount: number): string {
+  if (amount >= 1_000_000) {
+    const tr = amount / 1_000_000;
+    return (tr % 1 === 0 ? tr.toFixed(0) : tr.toFixed(1)) + "tr";
+  }
+  if (amount >= 1_000) return Math.round(amount / 1_000) + "k";
+  return String(amount);
+}
 
 function HomeContent() {
   const { transactions, deleteById, openEditModal } = useTx();
   const [month, setMonth] = useState(getCurrentMonth());
 
   const summary = useMemo(() => calcMonthSummary(transactions, month), [transactions, month]);
-  const weeklyData = useMemo(() => calcWeeklyData(transactions, month), [transactions, month]);
   const forecast = useMemo(() => calcMonthEndForecast(transactions, month), [transactions, month]);
   const streak = useMemo(() => calcStreak(transactions), [transactions]);
   const recent = useMemo(
     () => transactions.filter((t) => t.date.startsWith(month)).slice(0, 8),
     [transactions, month]
   );
+  const todayStr = getTodayISO();
+
+  const [dailyTarget, setDailyTarget] = useState<number | null>(null);
+  const [editingTarget, setEditingTarget] = useState(false);
+  const [targetInput, setTargetInput] = useState("");
+
+  useEffect(() => {
+    const saved = localStorage.getItem("daily_expense_target");
+    if (saved) setDailyTarget(Number(saved));
+  }, []);
+
+  function saveTarget() {
+    const val = parseInt(targetInput.replace(/\D/g, ""));
+    if (!isNaN(val) && val > 0) {
+      setDailyTarget(val);
+      localStorage.setItem("daily_expense_target", String(val));
+    } else {
+      setDailyTarget(null);
+      localStorage.removeItem("daily_expense_target");
+    }
+    setEditingTarget(false);
+  }
+
+  const calendarData = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const tx of transactions) {
+      if (!tx.date.startsWith(month) || tx.type !== "expense") continue;
+      map.set(tx.date, (map.get(tx.date) ?? 0) + tx.amount);
+    }
+    return map;
+  }, [transactions, month]);
+
+  const calendarGrid = useMemo(() => {
+    const [y, m] = month.split("-").map(Number);
+    const firstDow = new Date(y, m - 1, 1).getDay(); // 0=Sun
+    const startOffset = (firstDow + 6) % 7; // Mon=0 … Sun=6
+    const daysInMonth = new Date(y, m, 0).getDate();
+    const cells: (number | null)[] = [];
+    for (let i = 0; i < startOffset; i++) cells.push(null);
+    for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+    while (cells.length % 7 !== 0) cells.push(null);
+    return cells;
+  }, [month]);
 
   function prevMonth() {
     const [y, m] = month.split("-").map(Number);
@@ -99,27 +149,93 @@ function HomeContent() {
           </button>
         </div>
 
-        {/* Bar Chart */}
+        {/* Calendar */}
         <div className="card p-4">
+          {/* Header + target button */}
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold text-[#1A1A2E] dark:text-white text-sm">Tình hình thu chi</h2>
-            <div className="flex gap-3 text-[10px]">
-              <span className="flex items-center gap-1 text-gray-500 dark:text-gray-400"><span className="w-2 h-2 rounded-full bg-[#4CAF50]" />Thu</span>
-              <span className="flex items-center gap-1 text-gray-500 dark:text-gray-400"><span className="w-2 h-2 rounded-full bg-[#F44336]" />Chi</span>
-            </div>
+            <h2 className="font-bold text-[#1A1A2E] dark:text-white text-sm">Chi tiêu hằng ngày</h2>
+            {editingTarget ? (
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="number"
+                  value={targetInput}
+                  onChange={(e) => setTargetInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && saveTarget()}
+                  placeholder="VD: 200000"
+                  className="w-28 bg-gray-100 dark:bg-gray-700 rounded-lg px-2 py-1 text-xs text-right outline-none focus:ring-2 focus:ring-blue-200"
+                  autoFocus
+                />
+                <button onClick={saveTarget} className="text-xs text-[#1E90FF] font-bold">Lưu</button>
+                <button onClick={() => setEditingTarget(false)} className="text-xs text-gray-400">✕</button>
+              </div>
+            ) : (
+              <button
+                onClick={() => { setTargetInput(dailyTarget ? String(dailyTarget) : ""); setEditingTarget(true); }}
+                className="flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 active:bg-gray-200"
+              >
+                🎯 {dailyTarget ? `${fmtCal(dailyTarget)}/ngày` : "Target/ngày"}
+              </button>
+            )}
           </div>
-          <ResponsiveContainer width="100%" height={140}>
-            <BarChart data={weeklyData} barCategoryGap="30%">
-              <XAxis dataKey="week" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#6B7280" }} />
-              <YAxis hide />
-              <Tooltip
-                formatter={(val) => formatVNDShort(Number(val ?? 0))}
-                contentStyle={{ borderRadius: 12, border: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.1)", fontSize: 12 }}
-              />
-              <Bar dataKey="income" fill="#4CAF50" radius={[6, 6, 0, 0]} />
-              <Bar dataKey="expense" fill="#F44336" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+
+          {/* Legend khi có target */}
+          {dailyTarget !== null && (
+            <div className="flex gap-3 mb-2 text-[9px] font-semibold">
+              <span className="flex items-center gap-1 text-[#4CAF50]"><span className="w-2 h-2 rounded-sm bg-green-100 dark:bg-green-900/40 border border-green-200" />Trong mức</span>
+              <span className="flex items-center gap-1 text-[#F44336]"><span className="w-2 h-2 rounded-sm bg-red-50 dark:bg-red-900/20 border border-red-200" />Vượt mức</span>
+            </div>
+          )}
+
+          {/* Day-of-week headers */}
+          <div className="grid grid-cols-7 mb-1">
+            {CAL_HEADERS.map((h) => (
+              <div key={h} className={`text-center text-[10px] font-semibold py-0.5 ${h === "CN" ? "text-[#F44336]" : "text-gray-400 dark:text-gray-500"}`}>
+                {h}
+              </div>
+            ))}
+          </div>
+
+          {/* Calendar cells */}
+          <div className="grid grid-cols-7">
+            {calendarGrid.map((day, i) => {
+              if (!day) return <div key={i} className="h-[46px]" />;
+              const dateStr = `${month}-${String(day).padStart(2, "0")}`;
+              const expense = calendarData.get(dateStr) ?? 0;
+              const isToday = dateStr === todayStr;
+              const isSunday = i % 7 === 6;
+              const overTarget = expense > 0 && dailyTarget !== null && expense > dailyTarget;
+              const underTarget = expense > 0 && dailyTarget !== null && expense <= dailyTarget;
+              const anySpend = expense > 0 && dailyTarget === null;
+
+              return (
+                <div
+                  key={i}
+                  className={`flex flex-col items-center justify-start pt-1 pb-0.5 h-[46px] rounded-xl mx-0.5 my-0.5 ${
+                    isToday
+                      ? "bg-[#1E90FF] shadow-sm"
+                      : overTarget || anySpend
+                      ? "bg-red-50 dark:bg-red-900/15"
+                      : underTarget
+                      ? "bg-green-50 dark:bg-green-900/15"
+                      : ""
+                  }`}
+                >
+                  <span className={`text-[11px] font-bold leading-none ${
+                    isToday ? "text-white" : isSunday ? "text-[#F44336]" : "text-[#1A1A2E] dark:text-white"
+                  }`}>
+                    {day}
+                  </span>
+                  {expense > 0 && (
+                    <span className={`text-[9px] font-semibold leading-tight mt-0.5 ${
+                      isToday ? "text-blue-100" : underTarget ? "text-[#4CAF50]" : "text-[#F44336]"
+                    }`}>
+                      {fmtCal(expense)}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {/* Forecast widget — only shown for current month with enough data */}

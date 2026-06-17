@@ -75,3 +75,13 @@ body {
 .dark .card {
   box-shadow: 0 2px 12px rgba(0,0,0,0.4);
 }
+
+/* Force dark text in inputs — prevents white-on-white in dark mode
+   since all input/textarea backgrounds are always light (gray-50, white) */
+input, textarea, select {
+  color: #1A1A2E;
+}
+
+input::placeholder, textarea::placeholder {
+  color: #9CA3AF;
+}

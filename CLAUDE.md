@@ -373,6 +373,8 @@ chitieu/
 │   │                               calcHealthScore (0-100: tiết kiệm + nợ + ổn định + ngân sách)
 │   ├── categories.ts            ← getMergedCategories(), PRESET_COLORS, emoji suggestions
 │   ├── formatters.ts            ← formatVND, formatMonth, ...
+│   ├── voiceParser.ts           ← parseVoiceInput(transcript, customCats) → {type, amount, category, note}
+│   │                               Hỗ trợ: số tiền VN (nghìn/triệu/k/rưỡi), type keywords, 11 category maps
 │   └── storage.ts               ← Legacy (không dùng nữa, an toàn để xoá)
 │
 ├── types/
@@ -457,7 +459,13 @@ RESEND_FROM=Thu Chi <onboarding@resend.dev>
 - Số dư hiện tại (Thu - Chi tháng này)
 - Badge Dư / Âm — màu xanh/đỏ
 - **Streak badge 🔥:** hiển thị khi ≥ 2 ngày liên tiếp — "🔥 5 ngày liên tiếp" (ẩn nếu streak < 2)
-- Biểu đồ cột: Thu vs Chi theo 4 tuần trong tháng
+- **Lịch chi tiêu hằng ngày:** grid 7 cột (T2–CN) dạng lịch tháng
+  - Mỗi ô = 1 ngày: số ngày + số tiền chi (compact: "250k", "1.5tr") — không hiển thị thu
+  - Ngày có chi tiêu: nền đỏ nhạt + chữ đỏ
+  - Ngày hiện tại: nền xanh `#1E90FF` + chữ trắng
+  - Chủ nhật: số ngày màu đỏ
+  - `calendarData` (Map date→expense) + `calendarGrid` (array of day|null), `fmtCal()` ultra-compact trong `app/page.tsx`
+  - Bắt đầu tuần từ Thứ Hai (T2), offset = `(firstDow + 6) % 7`
 - **Widget 💡 Dự báo cuối tháng:** chỉ hiện khi đang xem tháng hiện tại và đã có ≥ 5 ngày dữ liệu — hiện chi dự kiến + số dư dự kiến dựa trên đà chi tiêu trung bình/ngày
 - **Widget 🏦 Khoản Vay:** donut chart + còn phải trả tháng này (tự ẩn nếu không có khoản vay)
 - Danh sách 8 giao dịch gần nhất (có nút sửa + xoá)
@@ -552,6 +560,20 @@ RESEND_FROM=Thu Chi <onboarding@resend.dev>
 - `app/reminders/page.tsx`: CRUD reminders + toggle active
 - `ReminderModal`: name, day_of_month (1-31), amount_estimate optional
 - AppShell mount check: nhắc nhở trong 3 ngày → toast cam, lưu key `reminders_shown_YYYY-MM-DD` để không spam
+
+### 15. Voice Input tiếng Việt (T3-2)
+- Nút **"🎤 Nói nhanh"** trong header của `TransactionModal` (góc phải, cạnh nút ✕)
+- Tap → browser xin quyền microphone → nói câu → auto-fill form (type + amount + category + note)
+- Tự ẩn nếu browser không hỗ trợ (feature-detect `window.SpeechRecognition`)
+- **Trạng thái nút:** xanh (idle) → đỏ pulse "Đang nghe..." (listening) → xanh (done)
+- **Toast xanh** hiện transcript ngắn gọn 3.5 giây sau khi nhận giọng
+- **Parser** (`lib/voiceParser.ts` — `parseVoiceInput(transcript, customCats)`):
+  - **Amount:** "250 nghìn/ngàn/k", "1 triệu/tr", "1 triệu rưỡi", "5 trăm nghìn", "250000"
+  - **Type:** detect từ keywords ("được/nhận" → income; "mua/chi/trả" → expense)
+  - **Category:** custom categories kiểm tra trước (by name match), sau đó default map 11 loại
+  - Fallback: infer type từ category nếu keywords không đủ
+- Ví dụ: "Hôm nay chạy bee được 250 nghìn" → Thu + Di chuyển/custom "Bee" + 250.000đ
+- **Platform:** iOS Safari ≥ 14.5 ✅, Android Chrome ✅ (dùng `vi-VN` lang code)
 
 ---
 
@@ -711,3 +733,214 @@ Sau mỗi task lớn (tính năng mới, UI overhaul, layout change):
 - [ ] **[Custom Categories]** Settings → "Danh mục tùy chỉnh" → /categories → thêm/sửa/xoá
 - [ ] **[Custom Categories]** Thêm giao dịch → custom categories xuất hiện sau mặc định
 - [ ] **[Custom Categories]** Link "Quản lý" trong TransactionModal → /categories
+- [ ] **[Voice Input T3-2]** Mở TransactionModal → nút "🎤 Nói nhanh" hiện trong header (iOS Safari/Android Chrome)
+- [ ] **[Voice Input T3-2]** Tap → allow microphone → nói "ăn cơm 50 nghìn" → Chi + Ăn uống + 50.000đ tự fill
+- [ ] **[Voice Input T3-2]** Nói "lương tháng 8 triệu" → Thu + Lương + 8.000.000đ
+- [ ] **[Voice Input T3-2]** Nói tên custom category → match đúng category tùy chỉnh
+- [ ] **[Voice Input T3-2]** Browser không hỗ trợ SpeechRecognition → nút tự ẩn
+
+---
+
+## Lộ trình Native Android App (.apk)
+
+### Chiến lược: Capacitor (Web → Native wrapper)
+
+Giữ nguyên toàn bộ Next.js web app, dùng **Capacitor** để wrap thành `.apk` cho Android Studio.  
+**Không dùng React Native** — tốn công rewrite toàn bộ UI.  
+**Không dùng TWA** — TWA phụ thuộc Chrome, không có native APIs.
+
+```
+Web App (Next.js/Vercel) ←── API calls ───→ Neon PostgreSQL
+        ↓  build static (next export)
+   Capacitor wrapper
+        ↓  Android Studio
+   app-release.apk
+```
+
+### Cài đặt Capacitor (khi cần build .apk)
+
+```bash
+npm install @capacitor/core @capacitor/cli @capacitor/android
+npx cap init "Thu Chi Tiết Kiệm" "com.thuchi.app" --web-dir=out
+npx cap add android
+```
+
+**`capacitor.config.ts`** (tạo khi init):
+```ts
+import { CapacitorConfig } from '@capacitor/cli';
+const config: CapacitorConfig = {
+  appId: 'com.thuchi.app',
+  appName: 'Thu Chi Tiết Kiệm',
+  webDir: 'out',
+  server: {
+    // Dev: trỏ vào Vercel URL để test nhanh không cần build
+    url: 'https://thu-chi-tiet-kiem.vercel.app',
+    cleartext: true,
+  },
+};
+export default config;
+```
+
+**Build flow:**
+```bash
+# 1. Build static Next.js
+next.config.ts: thêm output: 'export'
+npm run build       # tạo thư mục /out
+
+# 2. Sync vào Android project
+npx cap sync android
+
+# 3. Mở Android Studio
+npx cap open android
+# → Build → Generate Signed Bundle/APK → APK
+```
+
+### Các vấn đề cần giải quyết khi build native
+
+| Vấn đề | Web | Native (Capacitor) |
+|---|---|---|
+| Auth cookie | httpOnly cookie tự động | WebView hỗ trợ cookies — cần `server.cleartext: true` |
+| Voice Input | WebSpeech API (Chrome/Safari) | Thay bằng `@capacitor/speech-recognition` plugin |
+| Push Notifications | Không có | Thêm `@capacitor/push-notifications` |
+| File export CSV | `<a download>` | `@capacitor/filesystem` + Share API |
+| Camera/photo | Không cần | Sẵn sàng nếu cần sau |
+
+### Plugins Capacitor cần cài khi build native
+
+```bash
+# Voice recognition thay WebSpeech API
+npm install @capacitor-community/speech-recognition
+
+# Push notifications
+npm install @capacitor/push-notifications
+
+# Share file CSV
+npm install @capacitor/share @capacitor/filesystem
+```
+
+### next.config.ts khi export static
+
+```ts
+// Chỉ bật khi build cho Capacitor, tắt khi deploy Vercel
+output: process.env.CAPACITOR_BUILD === 'true' ? 'export' : undefined,
+trailingSlash: true,  // cần cho static export
+images: { unoptimized: true }, // Next Image không dùng được với static
+```
+
+### Checklist build .apk
+
+- [ ] `CAPACITOR_BUILD=true npm run build` → thư mục `/out` tạo thành công
+- [ ] `npx cap sync android` không lỗi
+- [ ] Android Studio → Run trên emulator → app load đúng
+- [ ] Auth cookie hoạt động trong WebView (login → reload vẫn đăng nhập)
+- [ ] Voice input dùng plugin native (nếu WebSpeech không hoạt động trong WebView)
+- [ ] Build APK → install trên device thật
+- [ ] App icon đúng (dùng `icon-512.png` resize theo Android sizes)
+
+---
+
+## Tối ưu hiệu năng (Performance)
+
+### Vấn đề hiện tại đã xác định
+
+| # | Vấn đề | File | Mức độ |
+|---|---|---|---|
+| P1 | `fetchTransactions()` tải **toàn bộ** lịch sử, không giới hạn | `AppShell.tsx:66` | Cao |
+| P2 | Mount AppShell: 2 `useEffect` riêng biệt → 2 request song song không được `Promise.all` | `AppShell.tsx:56-66` | Trung bình |
+| P3 | Recurring check chạy tuần tự N lần `createTransaction` trong callback | `AppShell.tsx:80+` | Trung bình |
+| P4 | Không có cache layer — mỗi reload = full DB query | `lib/api.ts` | Cao |
+| P5 | `recharts`, `LoanSummaryWidget`, `HealthScoreWidget` load eagerly | `app/page.tsx` | Trung bình |
+| P6 | `fetchReminders` trong AppShell mount gây thêm 1 DB round-trip | `AppShell.tsx` | Thấp |
+
+### Giải pháp ưu tiên cao (P1 + P4)
+
+**P1 — Fetch theo tháng trước, load thêm khi cần:**
+```ts
+// AppShell: fetch tháng hiện tại trước, lazy load full history
+const [transactions, setTransactions] = useState<Transaction[]>([]);
+const [allLoaded, setAllLoaded] = useState(false);
+
+useEffect(() => {
+  const currentMonth = getCurrentMonth();
+  fetchTransactions(currentMonth).then(async (monthData) => {
+    setTransactions(monthData);
+    setLoading(false);
+    // Load full history ngầm sau khi UI đã render
+    const allData = await fetchTransactions();
+    setTransactions(allData);
+    setAllLoaded(true);
+  });
+}, []);
+```
+
+**P4 — Cache với SWR (cài thêm `swr`):**
+```bash
+npm install swr
+```
+```ts
+import useSWR from 'swr';
+// Trong page dùng data ít thay đổi (loans, goals, reminders)
+const { data: loans } = useSWR('/api/loans', fetcher, {
+  revalidateOnFocus: false,
+  dedupingInterval: 60000, // 60s cache
+});
+```
+
+**Hoặc dùng Response Cache header trên API GET routes:**
+```ts
+// app/api/loans/route.ts — loans ít thay đổi, cache 60s
+return NextResponse.json(rows, {
+  headers: { 'Cache-Control': 's-maxage=60, stale-while-revalidate=300' }
+});
+```
+
+### Giải pháp ưu tiên trung bình (P2 + P3 + P5)
+
+**P2 — Parallel fetch khi mount:**
+```ts
+// AppShell: gom tất cả fetch vào Promise.all
+useEffect(() => {
+  Promise.all([
+    fetchTransactions(),
+    fetchUserProfile(),
+    fetchReminders(),
+  ]).then(([txData, profile, reminders]) => {
+    // xử lý tất cả cùng lúc
+  });
+}, []);
+```
+
+**P3 — Batch recurring transactions:**
+```ts
+// Thay vì await createTransaction() tuần tự trong vòng lặp
+const newTxs = await Promise.all(toCreate.map(t => createTransaction(t)));
+```
+
+**P5 — Dynamic import cho heavy components:**
+```ts
+import dynamic from 'next/dynamic';
+const LoanSummaryWidget = dynamic(() => import('@/components/LoanSummaryWidget'), { ssr: false });
+const HealthScoreWidget = dynamic(() => import('@/components/HealthScoreWidget'), { ssr: false });
+// recharts tự dynamic khi import bên trong component có "use client"
+```
+
+### Quy tắc hiệu năng bắt buộc (R7)
+
+- **R7.1** — Mỗi page mount không được gọi quá **2 API endpoints** tuần tự; dùng `Promise.all` cho parallel.
+- **R7.2** — Không fetch lại data đã có trong TxContext; pass qua context thay vì fetch riêng.
+- **R7.3** — Mọi `useMemo` dependency phải minimal — không đưa cả `transactions` array vào dep nếu chỉ cần sub-slice.
+- **R7.4** — Loading state phải hiển thị skeleton, không để blank screen > 200ms.
+- **R7.5** — Optimistic update là mặc định: cập nhật local state trước, rollback nếu API lỗi.
+- **R7.6** — Khi thêm tính năng mới, không thêm `useEffect` fetch mới trong AppShell — tận dụng data đã có hoặc lazy fetch trong page riêng.
+
+### DB Index cần đảm bảo có trên Neon
+
+```sql
+-- Đã có (xem phần Database), nhưng xác nhận lại:
+CREATE INDEX IF NOT EXISTS "idx_transactions_user_id" ON "transactions"("user_id");
+CREATE INDEX IF NOT EXISTS "idx_transactions_date" ON "transactions"("date");
+
+-- Thêm composite index cho query lọc theo user + tháng:
+CREATE INDEX IF NOT EXISTS "idx_transactions_user_date"
+  ON "transactions"("user_id", "date" DESC);
+```
