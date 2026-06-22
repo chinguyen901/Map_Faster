@@ -1,10 +1,10 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Trash2, Download, Info, Shield, LogOut, ChevronRight, Landmark, Moon, Sun, Target, Bell, Tag } from "lucide-react";
+import { Trash2, Download, Info, Shield, LogOut, ChevronRight, Landmark, Moon, Sun, Target, Bell, Tag, MessageCircle, X } from "lucide-react";
 import Link from "next/link";
 import AppShell, { useTx } from "@/components/AppShell";
 import BeepartnerLinkModal from "@/components/BeepartnerLinkModal";
-import { logout, fetchUserProfile } from "@/lib/api";
+import { logout, fetchUserProfile, getTelegramLinkUrl, unlinkTelegram } from "@/lib/api";
 import { formatVND } from "@/lib/formatters";
 import { calcMonthSummary, getLast6Months } from "@/lib/calculations";
 
@@ -15,6 +15,8 @@ function SettingsContent() {
   const [bePartnerPhone, setBePartnerPhone] = useState<string | null>(ctxBePhone);
   const [userPhone, setUserPhone] = useState("");
   const [showBeModal, setShowBeModal] = useState(false);
+  const [telegramLinked, setTelegramLinked] = useState(false);
+  const [telegramLoading, setTelegramLoading] = useState(false);
 
   useEffect(() => {
     setBePartnerPhone(ctxBePhone);
@@ -25,6 +27,7 @@ function SettingsContent() {
       if (p) {
         setUserPhone(p.phone);
         setBePartnerPhone(p.bePartnerPhone);
+        setTelegramLinked(p.telegramLinked ?? false);
       }
     });
   }, []);
@@ -69,6 +72,20 @@ function SettingsContent() {
 
   function handleClear() {
     alert("Để xoá dữ liệu, hãy xoá từng giao dịch trong trang Giao dịch.");
+  }
+
+  async function handleTelegramLink() {
+    setTelegramLoading(true);
+    const url = await getTelegramLinkUrl();
+    setTelegramLoading(false);
+    if (url) window.open(url, "_blank");
+  }
+
+  async function handleTelegramUnlink() {
+    setTelegramLoading(true);
+    const ok = await unlinkTelegram();
+    setTelegramLoading(false);
+    if (ok) setTelegramLinked(false);
   }
 
   return (
@@ -165,6 +182,45 @@ function SettingsContent() {
             </div>
             <ChevronRight size={16} className="text-gray-400" />
           </button>
+
+          {/* Telegram Bot */}
+          <div className="w-full bg-[#F0F8FF] dark:bg-gray-800/60 rounded-2xl p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <MessageCircle size={18} className="text-[#1E90FF]" />
+              <span className="text-sm font-semibold text-[#1A1A2E] dark:text-white flex-1">Trợ lý Telegram</span>
+              {telegramLinked && (
+                <span className="text-xs font-semibold text-[#4CAF50] bg-green-50 dark:bg-green-950/40 px-2 py-0.5 rounded-full">✅ Đã kết nối</span>
+              )}
+            </div>
+            {telegramLinked ? (
+              <div className="space-y-2">
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Nhắn tin cho bot để ghi thu chi, xem số dư nhanh.
+                </p>
+                <button
+                  onClick={handleTelegramUnlink}
+                  disabled={telegramLoading}
+                  className="flex items-center gap-2 text-xs font-semibold text-[#F44336] py-1.5 px-3 rounded-xl bg-red-50 dark:bg-red-950/30 active:bg-red-100 transition-colors disabled:opacity-50"
+                >
+                  <X size={13} />
+                  {telegramLoading ? "Đang huỷ..." : "Huỷ kết nối"}
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Nhắn <b>&quot;ăn cơm 50k&quot;</b> để ghi chi tiêu, <b>&quot;hôm nay còn bao nhiêu&quot;</b> để xem số dư.
+                </p>
+                <button
+                  onClick={handleTelegramLink}
+                  disabled={telegramLoading}
+                  className="w-full py-2.5 rounded-xl bg-[#1E90FF] text-white text-sm font-semibold active:bg-blue-700 transition-colors disabled:opacity-50"
+                >
+                  {telegramLoading ? "Đang tạo link..." : "🔗 Kết nối ngay"}
+                </button>
+              </div>
+            )}
+          </div>
 
           {/* Dark mode toggle */}
           <button

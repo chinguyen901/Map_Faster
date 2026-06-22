@@ -369,6 +369,7 @@ export interface UserProfile {
   phone: string;
   bePartnerPhone: string | null;
   bePartnerMonthlyTarget: number | null;
+  telegramLinked: boolean;
 }
 
 export async function fetchUserProfile(): Promise<UserProfile | null> {
@@ -405,6 +406,22 @@ export async function updateBeepartnerTarget(target: number | null): Promise<boo
     credentials: "include",
     body: JSON.stringify({ monthlyTarget: target }),
   });
+  if (res.status === 401) { window.location.href = "/login"; return false; }
+  return res.ok;
+}
+
+// --- Telegram Bot ---
+
+export async function getTelegramLinkUrl(): Promise<string | null> {
+  const res = await fetch("/api/telegram/link", { credentials: "include" });
+  if (res.status === 401) { window.location.href = "/login"; return null; }
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data.url ?? null;
+}
+
+export async function unlinkTelegram(): Promise<boolean> {
+  const res = await fetch("/api/telegram/link", { method: "DELETE", credentials: "include" });
   if (res.status === 401) { window.location.href = "/login"; return false; }
   return res.ok;
 }
