@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Trash2, Download, Info, Shield, LogOut, ChevronRight, Moon, Sun } from "lucide-react";
+import { Trash2, Download, Info, Shield, LogOut, ChevronRight, Landmark, Moon, Sun } from "lucide-react";
+import Link from "next/link";
 import AppShell, { useTx } from "@/components/AppShell";
 import BeepartnerLinkModal from "@/components/BeepartnerLinkModal";
 import { logout, fetchUserProfile } from "@/lib/api";
@@ -116,6 +117,15 @@ function SettingsContent() {
         {/* Tools */}
         <div className="card p-4 space-y-2">
           <h2 className="font-bold text-[#1A1A2E] dark:text-white text-sm mb-1">Công cụ</h2>
+
+          <Link
+            href="/loans"
+            className="w-full flex items-center gap-3 py-3.5 px-4 bg-[#F0F8FF] dark:bg-gray-800/60 rounded-2xl active:bg-blue-50 transition-colors"
+          >
+            <Landmark size={18} className="text-[#1E90FF]" />
+            <span className="text-sm font-semibold text-[#1A1A2E] dark:text-white flex-1">Quản lý khoản vay</span>
+            <ChevronRight size={16} className="text-gray-400" />
+          </Link>
 
           {/* Beepartner */}
           <button

@@ -10,7 +10,11 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: "Chưa đăng nhập" }, { status: 401 });
 
   const [row] = await db
-    .select({ phone: users.phone, bePartnerPhone: users.bePartnerPhone, bePartnerMonthlyTarget: users.bePartnerMonthlyTarget })
+    .select({
+      phone: users.phone,
+      bePartnerPhone: users.bePartnerPhone,
+      bePartnerMonthlyTarget: users.bePartnerMonthlyTarget,
+    })
     .from(users)
     .where(eq(users.id, user.userId));
 

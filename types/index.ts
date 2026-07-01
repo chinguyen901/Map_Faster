@@ -40,6 +40,7 @@ export const INCOME_CATEGORIES = [
   { name: "Thưởng", icon: "🎁", color: "#81C784" },
   { name: "Phụ cấp", icon: "💵", color: "#A5D6A7" },
   { name: "Đầu tư", icon: "📈", color: "#66BB6A" },
+  { name: "Be Income", icon: "🐝", color: "#FFD700" },
   { name: "Khác", icon: "💚", color: "#C8E6C9" },
 ] as const;
 
@@ -50,3 +51,26 @@ export interface Budget {
   month: string; // YYYY-MM
   createdAt: string;
 }
+
+export type LenderType = "bank" | "consumer" | "personal" | "other";
+
+export interface Loan {
+  id: string;
+  name: string;
+  lenderType: LenderType;
+  principal: number;
+  monthlyPayment: number;
+  totalMonths: number;
+  monthsPaid: number;
+  startMonth: string; // YYYY-MM
+  dueDay: number;
+  note: string;
+  createdAt: string;
+}
+
+export const LENDER_TYPES = [
+  { value: "bank" as LenderType, label: "Ngân hàng", icon: "🏦" },
+  { value: "consumer" as LenderType, label: "Vay tiêu dùng", icon: "💳" },
+  { value: "personal" as LenderType, label: "Vay cá nhân", icon: "👤" },
+  { value: "other" as LenderType, label: "Khác", icon: "📝" },
+] as const;
