@@ -1,6 +1,6 @@
 "use client";
 import { useMemo, useState, useEffect, useCallback } from "react";
-import { ChevronLeft, ChevronRight, Plus, TrendingUp, TrendingDown } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -9,7 +9,6 @@ import AppShell, { useTx } from "@/components/AppShell";
 import BudgetModal from "@/components/BudgetModal";
 import {
   calcExpenseByCategory, calcMonthSummary, getLast6Months,
-  calcCategoryInsights,
 } from "@/lib/calculations";
 import { formatVND, formatVNDShort, formatMonth, getCurrentMonth } from "@/lib/formatters";
 import { fetchBudgets, upsertBudget, deleteBudgetById } from "@/lib/api";
@@ -45,7 +44,6 @@ function ChartsContent() {
 
   const categoryData = useMemo(() => calcExpenseByCategory(transactions, month), [transactions, month]);
   const summary = useMemo(() => calcMonthSummary(transactions, month), [transactions, month]);
-  const insights = useMemo(() => calcCategoryInsights(transactions, month), [transactions, month]);
 
   const last6 = useMemo(() => getLast6Months(), []);
   const trend = useMemo(() =>
@@ -103,7 +101,7 @@ function ChartsContent() {
   const showBudgetSection = budgetRows.length > 0;
 
   return (
-    <div className="min-h-screen bg-[#F0F8FF]">
+    <div className="min-h-screen bg-[#F0F8FF] dark:bg-[#0D1117]">
       {/* Header */}
       <div className="bg-[#1E90FF] safe-header pb-6 px-5 rounded-b-[32px]">
         <h1 className="text-white font-extrabold text-xl mb-4">Biểu đồ phân tích</h1>
@@ -116,39 +114,10 @@ function ChartsContent() {
 
       <div className="px-4 py-5 space-y-4">
 
-        {/* Spending Insights (T1-3) */}
-        {insights.length > 0 && (
-          <div className="card p-4">
-            <h2 className="font-bold text-[#1A1A2E] text-sm mb-3">💡 Nhận xét chi tiêu</h2>
-            <div className="space-y-2">
-              {insights.map((insight) => {
-                const isOver = insight.changePercent > 0;
-                return (
-                  <div key={insight.category} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-base">{insight.icon}</span>
-                      <span className="text-sm text-gray-700">{insight.category}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className={`flex items-center gap-0.5 text-xs font-bold px-2 py-0.5 rounded-full ${
-                        isOver ? "bg-red-50 text-[#F44336]" : "bg-green-50 text-[#4CAF50]"
-                      }`}>
-                        {isOver ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
-                        {isOver ? "+" : ""}{insight.changePercent}%
-                      </span>
-                      <span className="text-xs text-gray-400">so TB 3 tháng</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
         {/* Pie chart - expense by category */}
         <div className="card p-4">
           <div className="flex items-center justify-between mb-1">
-            <h2 className="font-bold text-[#1A1A2E] text-sm">Phân bổ chi tiêu</h2>
+            <h2 className="font-bold text-[#1A1A2E] dark:text-white text-sm">Phân bổ chi tiêu</h2>
             <span className="text-xs text-gray-400">Tổng chi: {formatVNDShort(summary.totalExpense)}</span>
           </div>
 
@@ -182,7 +151,7 @@ function ChartsContent() {
                   <div key={item.category} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
-                      <span className="text-sm text-gray-700">{item.category}</span>
+                      <span className="text-sm text-gray-700 dark:text-gray-300">{item.category}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-gray-400">{item.percentage}%</span>
@@ -200,10 +169,10 @@ function ChartsContent() {
         {/* Budget section (T1-2) */}
         <div className="card p-4">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold text-[#1A1A2E] text-sm">🎯 Ngân sách tháng này</h2>
+            <h2 className="font-bold text-[#1A1A2E] dark:text-white text-sm">🎯 Ngân sách tháng này</h2>
             <button
               onClick={() => setBudgetModal({ open: true })}
-              className="flex items-center gap-1 text-xs font-semibold text-[#1E90FF] bg-blue-50 px-2.5 py-1 rounded-full"
+              className="flex items-center gap-1 text-xs font-semibold text-[#1E90FF] bg-blue-50 dark:bg-blue-950/40 px-2.5 py-1 rounded-full"
             >
               <Plus size={12} /> Thêm
             </button>
@@ -221,9 +190,9 @@ function ChartsContent() {
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2">
                         <span className="text-sm">{icon}</span>
-                        <span className="text-sm font-medium text-gray-700">{cat}</span>
-                        {isOver && <span className="text-[10px] font-bold text-[#F44336] bg-red-50 px-1.5 py-0.5 rounded-full">Vượt!</span>}
-                        {isWarning && <span className="text-[10px] font-bold text-[#FF9800] bg-orange-50 px-1.5 py-0.5 rounded-full">Gần đạt</span>}
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{cat}</span>
+                        {isOver && <span className="text-[10px] font-bold text-[#F44336] bg-red-50 dark:bg-red-950/30 px-1.5 py-0.5 rounded-full">Vượt!</span>}
+                        {isWarning && <span className="text-[10px] font-bold text-[#FF9800] bg-orange-50 dark:bg-orange-950/30 px-1.5 py-0.5 rounded-full">Gần đạt</span>}
                       </div>
                       <button
                         onClick={() => setBudgetModal({
@@ -240,7 +209,7 @@ function ChartsContent() {
 
                     {budget ? (
                       <>
-                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
                           <div
                             className="h-full rounded-full transition-all"
                             style={{ width: `${Math.min(pct ?? 0, 100)}%`, backgroundColor: barColor }}
@@ -262,7 +231,7 @@ function ChartsContent() {
                         </div>
                       </>
                     ) : (
-                      <div className="h-2 bg-gray-100 rounded-full" />
+                      <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full" />
                     )}
                   </div>
                 );
@@ -283,7 +252,7 @@ function ChartsContent() {
 
         {/* 6-month trend */}
         <div className="card p-4">
-          <h2 className="font-bold text-[#1A1A2E] text-sm mb-3">Xu hướng 6 tháng gần đây</h2>
+          <h2 className="font-bold text-[#1A1A2E] dark:text-white text-sm mb-3">Xu hướng 6 tháng gần đây</h2>
           <ResponsiveContainer width="100%" height={180}>
             <BarChart data={trend} barCategoryGap="20%">
               <CartesianGrid strokeDasharray="3 3" stroke="#F0F0F0" vertical={false} />
@@ -301,13 +270,13 @@ function ChartsContent() {
 
         {/* Monthly surplus/deficit table */}
         <div className="card p-4">
-          <h2 className="font-bold text-[#1A1A2E] text-sm mb-3">Kết quả từng tháng</h2>
+          <h2 className="font-bold text-[#1A1A2E] dark:text-white text-sm mb-3">Kết quả từng tháng</h2>
           <div className="space-y-2">
             {[...trend].reverse().map((row) => {
               const isPos = row.balance >= 0;
               return (
-                <div key={row.month} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
-                  <span className="text-sm text-gray-600 font-medium">Tháng {row.month}</span>
+                <div key={row.month} className="flex items-center justify-between py-2 border-b border-gray-50 dark:border-gray-700/50 last:border-0">
+                  <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">Tháng {row.month}</span>
                   <span className={`text-sm font-bold ${isPos ? "text-[#4CAF50]" : "text-[#F44336]"}`}>
                     {isPos ? "+" : ""}{formatVND(row.balance)}
                   </span>

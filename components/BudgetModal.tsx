@@ -38,11 +38,11 @@ export default function BudgetModal({ open, onClose, onSave, onDelete, editingCa
   return (
     <div className="fixed inset-0 z-[60] flex items-end">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative w-full max-w-[430px] mx-auto bg-white rounded-t-3xl flex flex-col max-h-[90dvh]">
+      <div className="relative w-full max-w-[430px] mx-auto bg-white dark:bg-[#161B27] rounded-t-3xl flex flex-col max-h-[90dvh]">
         {/* Scrollable content */}
         <div className="overflow-y-auto flex-1 px-6 pt-6 pb-2">
           <div className="flex items-center justify-between mb-5">
-            <h3 className="font-bold text-[#1A1A2E] text-base">
+            <h3 className="font-bold text-[#1A1A2E] dark:text-white text-base">
               {isEditing ? "Sửa ngân sách" : "Đặt ngân sách"}
             </h3>
             <button onClick={onClose} className="p-1 text-gray-400"><X size={20} /></button>
@@ -50,7 +50,7 @@ export default function BudgetModal({ open, onClose, onSave, onDelete, editingCa
 
           {!isEditing && (
             <div className="mb-4">
-              <p className="text-xs font-semibold text-gray-500 mb-2">Danh mục chi</p>
+              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">Danh mục chi</p>
               <div className="grid grid-cols-2 gap-2">
                 {EXPENSE_CATEGORIES.map((cat) => (
                   <button
@@ -58,8 +58,8 @@ export default function BudgetModal({ open, onClose, onSave, onDelete, editingCa
                     onClick={() => setCategory(cat.name)}
                     className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all ${
                       category === cat.name
-                        ? "border-[#1E90FF] bg-blue-50 text-[#1E90FF]"
-                        : "border-gray-200 text-gray-600 bg-white"
+                        ? "border-[#1E90FF] bg-blue-50 dark:bg-blue-950/40 text-[#1E90FF]"
+                        : "border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800"
                     }`}
                   >
                     <span className="text-base">{cat.icon}</span>
@@ -71,7 +71,7 @@ export default function BudgetModal({ open, onClose, onSave, onDelete, editingCa
           )}
 
           {isEditing && (
-            <div className="mb-4 flex items-center gap-2 px-3 py-2.5 bg-blue-50 rounded-xl">
+            <div className="mb-4 flex items-center gap-2 px-3 py-2.5 bg-blue-50 dark:bg-blue-950/40 rounded-xl">
               <span className="text-base">
                 {EXPENSE_CATEGORIES.find((c) => c.name === editingCategory)?.icon}
               </span>
@@ -80,11 +80,11 @@ export default function BudgetModal({ open, onClose, onSave, onDelete, editingCa
           )}
 
           <div className="mb-2">
-            <p className="text-xs font-semibold text-gray-500 mb-2">Ngân sách hàng tháng</p>
+            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">Ngân sách hàng tháng</p>
             <input
               type="number"
               inputMode="numeric"
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base font-semibold focus:outline-none focus:border-[#1E90FF] transition-colors"
+              className="w-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 dark:text-white rounded-xl px-4 py-3 text-base font-semibold focus:outline-none focus:border-[#1E90FF] transition-colors"
               placeholder="Nhập số tiền..."
               value={amountStr}
               onChange={(e) => setAmountStr(e.target.value)}

@@ -3,10 +3,8 @@ import { useMemo, useState, useEffect } from "react";
 import { TrendingUp, TrendingDown, ChevronLeft, ChevronRight } from "lucide-react";
 import AppShell, { useTx } from "@/components/AppShell";
 import TransactionItem from "@/components/TransactionItem";
-import LoanSummaryWidget from "@/components/LoanSummaryWidget";
-import HealthScoreWidget from "@/components/HealthScoreWidget";
 import BeepartnerWidget from "@/components/BeepartnerWidget";
-import { calcMonthSummary, calcMonthEndForecast, calcStreak } from "@/lib/calculations";
+import { calcMonthSummary } from "@/lib/calculations";
 import { formatVND, formatVNDShort, formatMonth, getCurrentMonth, getTodayISO } from "@/lib/formatters";
 
 const CAL_HEADERS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
@@ -25,8 +23,6 @@ function HomeContent() {
   const [month, setMonth] = useState(getCurrentMonth());
 
   const summary = useMemo(() => calcMonthSummary(transactions, month), [transactions, month]);
-  const forecast = useMemo(() => calcMonthEndForecast(transactions, month), [transactions, month]);
-  const streak = useMemo(() => calcStreak(transactions), [transactions]);
   const recent = useMemo(
     () => transactions.filter((t) => t.date.startsWith(month)).slice(0, 8),
     [transactions, month]
@@ -106,13 +102,6 @@ function HomeContent() {
             {isPositive ? "Dư" : "Âm"}
           </div>
         </div>
-
-        {/* Streak badge */}
-        {streak >= 2 && (
-          <div className="inline-flex items-center gap-1.5 bg-orange-400/25 rounded-full px-3 py-1 text-xs font-semibold text-orange-100 mb-4 mt-2">
-            🔥 {streak} ngày liên tiếp
-          </div>
-        )}
 
         {/* Income / Expense row */}
         <div className="flex gap-3 mt-3">
@@ -238,39 +227,8 @@ function HomeContent() {
           </div>
         </div>
 
-        {/* Forecast widget — only shown for current month with enough data */}
-        {forecast && (
-          <div className="card p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="font-bold text-[#1A1A2E] dark:text-white text-sm">💡 Dự báo cuối tháng</h2>
-              <span className="text-xs text-gray-400">còn {forecast.daysLeft} ngày</span>
-            </div>
-            <div className="flex gap-3">
-              <div className="flex-1 bg-[#F0F8FF] dark:bg-gray-800/60 rounded-xl p-3">
-                <p className="text-[10px] text-gray-400 font-medium">Chi dự kiến</p>
-                <p className="font-bold text-[#F44336] text-sm mt-0.5">{formatVND(forecast.projectedExpense)}</p>
-              </div>
-              <div className="flex-1 bg-[#F0F8FF] dark:bg-gray-800/60 rounded-xl p-3">
-                <p className="text-[10px] text-gray-400 font-medium">Số dư dự kiến</p>
-                <p className={`font-bold text-sm mt-0.5 ${forecast.projectedBalance >= 0 ? "text-[#4CAF50]" : "text-[#F44336]"}`}>
-                  {forecast.projectedBalance >= 0 ? "+" : ""}{formatVND(forecast.projectedBalance)}
-                </p>
-              </div>
-            </div>
-            <p className="text-[10px] text-gray-400 mt-2">
-              Theo đà chi tiêu {formatVNDShort(forecast.dailyAvgExpense)}/ngày hiện tại
-            </p>
-          </div>
-        )}
-
-        {/* Loan summary widget */}
-        <LoanSummaryWidget />
-
         {/* Beepartner income widget */}
         <BeepartnerWidget month={month} />
-
-        {/* Health score widget */}
-        <HealthScoreWidget />
 
         {/* Recent transactions */}
         {recent.length > 0 && (

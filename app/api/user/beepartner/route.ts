@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
-import { users, customCategories } from "@/lib/schema";
-import { eq, and } from "drizzle-orm";
+import { users } from "@/lib/schema";
+import { eq } from "drizzle-orm";
 import { getAuthUser } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
@@ -16,22 +16,6 @@ export async function POST(req: NextRequest) {
 
   const cleanPhone = String(phone).replace(/\s/g, "");
   await db.update(users).set({ bePartnerPhone: cleanPhone }).where(eq(users.id, user.userId));
-
-  // Auto-create "Be Income" custom category if not exists
-  const existing = await db
-    .select({ id: customCategories.id })
-    .from(customCategories)
-    .where(and(eq(customCategories.userId, user.userId), eq(customCategories.name, "Be Income")));
-
-  if (existing.length === 0) {
-    await db.insert(customCategories).values({
-      userId: user.userId,
-      type: "income",
-      name: "Be Income",
-      icon: "🐝",
-      color: "#FFD700",
-    });
-  }
 
   return NextResponse.json({ success: true, bePartnerPhone: cleanPhone });
 }

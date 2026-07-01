@@ -1,39 +1,13 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
-import { X, Settings2, Mic } from "lucide-react";
-import Link from "next/link";
-import { Transaction, TransactionType, CustomCategory } from "@/types";
+import { useState, useEffect } from "react";
+import { X } from "lucide-react";
+import { Transaction, TransactionType, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "@/types";
 import { getTodayISO } from "@/lib/formatters";
-import { fetchCustomCategories } from "@/lib/api";
-import { getMergedCategories } from "@/lib/categories";
-import { parseVoiceInput } from "@/lib/voiceParser";
-
-// Web Speech API — not in standard TypeScript lib
-interface ISpeechRecognitionEvent {
-  readonly results: { [index: number]: { [index: number]: { transcript: string } } };
-}
-interface ISpeechRecognition extends EventTarget {
-  lang: string;
-  continuous: boolean;
-  interimResults: boolean;
-  start(): void;
-  stop(): void;
-  abort(): void;
-  onresult: ((event: ISpeechRecognitionEvent) => void) | null;
-  onerror: ((event: { error: string }) => void) | null;
-  onend: (() => void) | null;
-}
-declare global {
-  interface Window {
-    SpeechRecognition: { new(): ISpeechRecognition };
-    webkitSpeechRecognition: { new(): ISpeechRecognition };
-  }
-}
 
 interface Props {
   open: boolean;
   onClose: () => void;
-  onSave: (data: { type: TransactionType; category: string; amount: number; note: string; date: string; isRecurring: boolean; recurringDay: number | null }) => void;
+  onSave: (data: { type: TransactionType; category: string; amount: number; note: string; date: string }) => void;
   editingTransaction?: Transaction | null;
   initialType?: TransactionType;
   initialCategory?: string;
@@ -45,75 +19,9 @@ export default function TransactionModal({ open, onClose, onSave, editingTransac
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [date, setDate] = useState(getTodayISO());
-  const [isRecurring, setIsRecurring] = useState(false);
-  const [recurringDay, setRecurringDay] = useState<number>(1);
-  const [customCats, setCustomCats] = useState<CustomCategory[]>([]);
-  const [isListening, setIsListening] = useState(false);
-  const [voiceToast, setVoiceToast] = useState("");
-  const [speechSupported, setSpeechSupported] = useState(false);
-  const recognitionRef = useRef<ISpeechRecognition | null>(null);
-  const voiceToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isEditing = !!editingTransaction;
-  const categories = getMergedCategories(type, customCats);
-
-  // Feature-detect SpeechRecognition once on mount
-  useEffect(() => {
-    setSpeechSupported(
-      typeof window !== "undefined" &&
-        ("SpeechRecognition" in window || "webkitSpeechRecognition" in window)
-    );
-  }, []);
-
-  // Fetch custom categories when modal opens; abort recognition if modal closes
-  useEffect(() => {
-    if (open) {
-      fetchCustomCategories().then(setCustomCats);
-    } else {
-      recognitionRef.current?.abort();
-      setIsListening(false);
-    }
-  }, [open]);
-
-  function startVoiceInput() {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SR();
-    recognition.lang = "vi-VN";
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognitionRef.current = recognition;
-
-    recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      const parsed = parseVoiceInput(transcript, customCats);
-      if (parsed.type) setType(parsed.type);
-      if (parsed.amount) handleAmountChange(String(parsed.amount));
-      if (parsed.category) setCategory(parsed.category);
-      setNote(parsed.note);
-      const display = transcript.length > 60 ? transcript.slice(0, 57) + "..." : transcript;
-      setVoiceToast(display);
-      if (voiceToastTimer.current) clearTimeout(voiceToastTimer.current);
-      voiceToastTimer.current = setTimeout(() => setVoiceToast(""), 3500);
-    };
-
-    recognition.onerror = (event) => {
-      setIsListening(false);
-      if (event.error === "not-allowed") setVoiceToast("⚠️ Vui lòng cho phép truy cập microphone");
-      else if (event.error === "no-speech") setVoiceToast("Không nghe thấy gì, thử lại nhé");
-      if (voiceToastTimer.current) clearTimeout(voiceToastTimer.current);
-      voiceToastTimer.current = setTimeout(() => setVoiceToast(""), 3000);
-    };
-
-    recognition.onend = () => setIsListening(false);
-
-    recognition.start();
-    setIsListening(true);
-  }
-
-  function stopVoiceInput() {
-    recognitionRef.current?.stop();
-    setIsListening(false);
-  }
+  const categories = type === "expense" ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
 
   // Pre-fill form when editing
   useEffect(() => {
@@ -123,8 +31,6 @@ export default function TransactionModal({ open, onClose, onSave, editingTransac
       setAmount(editingTransaction.amount.toLocaleString("vi-VN"));
       setNote(editingTransaction.note);
       setDate(editingTransaction.date);
-      setIsRecurring(editingTransaction.isRecurring);
-      setRecurringDay(editingTransaction.recurringDay ?? 1);
     } else {
       resetForm();
     }
@@ -134,11 +40,7 @@ export default function TransactionModal({ open, onClose, onSave, editingTransac
     e.preventDefault();
     const parsedAmount = parseInt(amount.replace(/\D/g, ""), 10);
     if (!parsedAmount || parsedAmount <= 0 || !category) return;
-    onSave({
-      type, category, amount: parsedAmount, note, date,
-      isRecurring,
-      recurringDay: isRecurring ? recurringDay : null,
-    });
+    onSave({ type, category, amount: parsedAmount, note, date });
     resetForm();
     onClose();
   }
@@ -149,9 +51,6 @@ export default function TransactionModal({ open, onClose, onSave, editingTransac
     setAmount("");
     setNote("");
     setDate(getTodayISO());
-    setIsRecurring(false);
-    setRecurringDay(1);
-    setVoiceToast("");
   }
 
   function handleAmountChange(val: string) {
@@ -170,54 +69,31 @@ export default function TransactionModal({ open, onClose, onSave, editingTransac
       {/* Card — anchored to bottom, centered, max 430px */}
       <div className="fixed bottom-0 left-0 right-0 z-[60] flex justify-center pointer-events-none">
         <div
-          className="w-full max-w-[430px] bg-white rounded-t-3xl shadow-2xl pointer-events-auto"
+          className="w-full max-w-[430px] bg-white dark:bg-[#161B27] rounded-t-3xl shadow-2xl pointer-events-auto"
           style={{ maxHeight: "90dvh", overflowY: "auto" }}
         >
           {/* Handle */}
-          <div className="flex justify-center pt-3 pb-1 sticky top-0 bg-white">
-            <div className="w-10 h-1 bg-gray-200 rounded-full" />
+          <div className="flex justify-center pt-3 pb-1 sticky top-0 bg-white dark:bg-[#161B27]">
+            <div className="w-10 h-1 bg-gray-200 dark:bg-gray-600 rounded-full" />
           </div>
 
           {/* Header */}
-          <div className="flex items-center justify-between px-5 py-3 sticky top-5 bg-white z-10">
-            <h2 className="text-lg font-bold text-[#1A1A2E]">
+          <div className="flex items-center justify-between px-5 py-3 sticky top-5 bg-white dark:bg-[#161B27] z-10">
+            <h2 className="text-lg font-bold text-[#1A1A2E] dark:text-white">
               {isEditing ? "Sửa giao dịch" : "Thêm giao dịch"}
             </h2>
-            <div className="flex items-center gap-2">
-              {speechSupported && (
-                <button
-                  type="button"
-                  onClick={isListening ? stopVoiceInput : startVoiceInput}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                    isListening
-                      ? "bg-red-500 text-white animate-pulse"
-                      : "bg-blue-50 text-[#1E90FF] hover:bg-blue-100 active:bg-blue-200"
-                  }`}
-                >
-                  <Mic size={13} />
-                  {isListening ? "Đang nghe..." : "Nói nhanh"}
-                </button>
-              )}
-              <button onClick={onClose} className="p-1.5 rounded-full hover:bg-gray-100 active:bg-gray-200">
-                <X size={20} className="text-gray-500" />
-              </button>
-            </div>
+            <button onClick={onClose} className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200">
+              <X size={20} className="text-gray-500 dark:text-gray-400" />
+            </button>
           </div>
 
-          {/* Voice transcript toast */}
-          {voiceToast && (
-            <div className="mx-5 mb-2 px-3 py-2 bg-blue-50 border border-blue-100 rounded-xl text-xs text-[#1E90FF] leading-snug">
-              🎤 &quot;{voiceToast}&quot;
-            </div>
-          )}
-
           {/* Type Toggle */}
-          <div className="mx-5 mb-4 flex rounded-2xl bg-gray-100 p-1">
+          <div className="mx-5 mb-4 flex rounded-2xl bg-gray-100 dark:bg-gray-800 p-1">
             <button
               type="button"
               onClick={() => { setType("expense"); setCategory(""); }}
               className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-                type === "expense" ? "bg-[#F44336] text-white shadow" : "text-gray-500"
+                type === "expense" ? "bg-[#F44336] text-white shadow" : "text-gray-500 dark:text-gray-400"
               }`}
             >
               Chi tiêu
@@ -226,7 +102,7 @@ export default function TransactionModal({ open, onClose, onSave, editingTransac
               type="button"
               onClick={() => { setType("income"); setCategory(""); }}
               className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-                type === "income" ? "bg-[#4CAF50] text-white shadow" : "text-gray-500"
+                type === "income" ? "bg-[#4CAF50] text-white shadow" : "text-gray-500 dark:text-gray-400"
               }`}
             >
               Thu nhập
@@ -236,7 +112,7 @@ export default function TransactionModal({ open, onClose, onSave, editingTransac
           <form onSubmit={handleSubmit} className="px-5 space-y-4" style={{ paddingBottom: "max(24px, env(safe-area-inset-bottom))" }}>
             {/* Amount */}
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Số tiền</label>
+              <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Số tiền</label>
               <div className="mt-1 relative">
                 <input
                   type="text"
@@ -245,7 +121,7 @@ export default function TransactionModal({ open, onClose, onSave, editingTransac
                   value={amount}
                   onChange={(e) => handleAmountChange(e.target.value)}
                   required
-                  className="w-full text-3xl font-bold text-[#1A1A2E] border-b-2 border-[#1E90FF] bg-transparent pb-2 pr-8 outline-none placeholder-gray-300"
+                  className="w-full text-3xl font-bold text-[#1A1A2E] dark:text-white border-b-2 border-[#1E90FF] bg-transparent pb-2 pr-8 outline-none placeholder-gray-300 dark:placeholder-gray-600"
                 />
                 <span className="absolute right-0 bottom-2.5 text-xl font-bold text-gray-400">đ</span>
               </div>
@@ -253,16 +129,7 @@ export default function TransactionModal({ open, onClose, onSave, editingTransac
 
             {/* Category */}
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Danh mục</label>
-                <Link
-                  href="/categories"
-                  onClick={onClose}
-                  className="flex items-center gap-1 text-[10px] text-gray-400 hover:text-[#1E90FF]"
-                >
-                  <Settings2 size={11} /> Quản lý
-                </Link>
-              </div>
+              <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Danh mục</label>
               <div className="mt-1 grid grid-cols-4 gap-2">
                 {categories.map((cat) => (
                   <button
@@ -271,12 +138,12 @@ export default function TransactionModal({ open, onClose, onSave, editingTransac
                     onClick={() => setCategory(cat.name)}
                     className={`flex flex-col items-center gap-1 p-2 rounded-xl border-2 transition-all ${
                       category === cat.name
-                        ? "border-[#1E90FF] bg-blue-50"
-                        : "border-transparent bg-gray-50"
+                        ? "border-[#1E90FF] bg-blue-50 dark:bg-blue-950/40"
+                        : "border-transparent bg-gray-50 dark:bg-gray-800"
                     }`}
                   >
                     <span className="text-xl">{cat.icon}</span>
-                    <span className="text-[9px] font-medium text-gray-600 text-center leading-tight">{cat.name}</span>
+                    <span className="text-[9px] font-medium text-gray-600 dark:text-gray-300 text-center leading-tight">{cat.name}</span>
                   </button>
                 ))}
               </div>
@@ -284,62 +151,26 @@ export default function TransactionModal({ open, onClose, onSave, editingTransac
 
             {/* Note */}
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Ghi chú</label>
+              <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Ghi chú</label>
               <input
                 type="text"
                 placeholder="Thêm ghi chú..."
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                className="mt-1 w-full bg-gray-50 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-200"
+                className="mt-1 w-full bg-gray-50 dark:bg-gray-800 dark:text-white rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-200"
               />
             </div>
 
             {/* Date */}
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Ngày</label>
+              <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Ngày</label>
               <input
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="mt-1 w-full bg-gray-50 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-200"
+                className="mt-1 w-full bg-gray-50 dark:bg-gray-800 dark:text-white rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-200"
               />
             </div>
-
-            {/* Recurring toggle */}
-            <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3">
-              <div>
-                <p className="text-sm font-semibold text-[#1A1A2E]">Lặp lại hàng tháng</p>
-                <p className="text-xs text-gray-400 mt-0.5">Tự động nhắc vào ngày cố định</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsRecurring((v) => !v)}
-                className={`relative w-12 h-6 rounded-full transition-colors ${
-                  isRecurring ? "bg-[#1E90FF]" : "bg-gray-300"
-                }`}
-              >
-                <span
-                  className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
-                    isRecurring ? "translate-x-6" : ""
-                  }`}
-                />
-              </button>
-            </div>
-
-            {isRecurring && (
-              <div className="flex items-center gap-3 bg-blue-50 rounded-xl px-4 py-3">
-                <span className="text-sm text-gray-600">Ngày</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={31}
-                  value={recurringDay}
-                  onChange={(e) => setRecurringDay(Math.min(31, Math.max(1, parseInt(e.target.value) || 1)))}
-                  className="w-16 bg-white rounded-lg px-3 py-1.5 text-sm font-bold text-center outline-none focus:ring-2 focus:ring-blue-200"
-                />
-                <span className="text-sm text-gray-600">hằng tháng</span>
-              </div>
-            )}
 
             <button
               type="submit"

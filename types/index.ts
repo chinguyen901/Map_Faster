@@ -7,8 +7,6 @@ export interface Transaction {
   amount: number;
   note: string;
   date: string; // ISO date string YYYY-MM-DD
-  isRecurring: boolean;
-  recurringDay: number | null;
   createdAt: string;
 }
 
@@ -45,62 +43,10 @@ export const INCOME_CATEGORIES = [
   { name: "Khác", icon: "💚", color: "#C8E6C9" },
 ] as const;
 
-export type LenderType = "bank" | "consumer" | "personal" | "other";
-
-export interface Loan {
-  id: string;
-  name: string;
-  lenderType: LenderType;
-  principal: number;
-  monthlyPayment: number;
-  totalMonths: number;
-  monthsPaid: number;
-  startMonth: string; // YYYY-MM
-  dueDay: number;
-  note: string;
-  createdAt: string;
-}
-
 export interface Budget {
   id: string;
   category: string;
   amount: number;
   month: string; // YYYY-MM
-  createdAt: string;
-}
-
-export const LENDER_TYPES = [
-  { value: "bank" as LenderType, label: "Ngân hàng", icon: "🏦" },
-  { value: "consumer" as LenderType, label: "Vay tiêu dùng", icon: "💳" },
-  { value: "personal" as LenderType, label: "Vay cá nhân", icon: "👤" },
-  { value: "other" as LenderType, label: "Khác", icon: "📝" },
-] as const;
-
-export interface Goal {
-  id: string;
-  name: string;
-  targetAmount: number;
-  savedAmount: number;
-  deadline: string | null; // YYYY-MM
-  note: string;
-  createdAt: string;
-}
-
-export interface Reminder {
-  id: string;
-  name: string;
-  dayOfMonth: number;
-  amountEstimate: number | null;
-  isActive: boolean;
-  note: string;
-  createdAt: string;
-}
-
-export interface CustomCategory {
-  id: string;
-  type: "income" | "expense";
-  name: string;
-  icon: string;
-  color: string;
   createdAt: string;
 }
