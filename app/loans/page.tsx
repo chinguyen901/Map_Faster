@@ -35,16 +35,19 @@ function LoansContent() {
     setModalOpen(true);
   }, []);
 
-  const handleSave = useCallback(async (data: Omit<Loan, "id" | "createdAt">) => {
+  const handleSave = useCallback(async (data: Omit<Loan, "id" | "createdAt">): Promise<boolean> => {
     if (editingLoan) {
       const updated = await updateLoan(editingLoan.id, data);
-      if (updated) setLoans((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
+      if (!updated) return false;
+      setLoans((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
     } else {
       const created = await createLoan(data);
-      if (created) setLoans((prev) => [created, ...prev]);
+      if (!created) return false;
+      setLoans((prev) => [created, ...prev]);
     }
     setModalOpen(false);
     setEditingLoan(null);
+    return true;
   }, [editingLoan]);
 
   const handleDelete = useCallback(async (id: string) => {

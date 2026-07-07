@@ -8,7 +8,7 @@ import { formatVND, getCurrentMonth } from "@/lib/formatters";
 interface Props {
   open: boolean;
   onClose: () => void;
-  onSave: (data: Omit<Loan, "id" | "createdAt">) => void;
+  onSave: (data: Omit<Loan, "id" | "createdAt">) => Promise<boolean>;
   onDelete?: () => void;
   editingLoan?: Loan | null;
 }
@@ -29,11 +29,15 @@ export default function LoanModal({ open, onClose, onSave, onDelete, editingLoan
   const [startMonth, setStartMonth] = useState(getCurrentMonth());
   const [dueDay, setDueDay] = useState("5");
   const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   const isEditing = !!editingLoan;
 
   useEffect(() => {
     if (!open) return;
+    setError("");
+    setSaving(false);
     if (editingLoan) {
       setName(editingLoan.name);
       setLenderType(editingLoan.lenderType);
@@ -68,12 +72,17 @@ export default function LoanModal({ open, onClose, onSave, onDelete, editingLoan
 
   if (!open) return null;
 
-  function handleSubmit(e: React.SyntheticEvent) {
+  async function handleSubmit(e: React.SyntheticEvent) {
     e.preventDefault();
     const dueDayNum = Math.min(31, Math.max(1, parseInt(dueDay, 10) || 1));
     const monthsPaidNum = Math.max(0, parseInt(monthsPaid, 10) || 0);
-    if (!name || !principalNum || !monthlyPaymentNum || !totalMonthsNum || !startMonth) return;
-    onSave({
+    if (!name || !principalNum || !monthlyPaymentNum || !totalMonthsNum || !startMonth) {
+      setError("Vui lòng điền đủ tên, số tiền vay, trả/tháng, tổng số tháng và tháng bắt đầu.");
+      return;
+    }
+    setError("");
+    setSaving(true);
+    const ok = await onSave({
       name,
       lenderType,
       principal: principalNum,
@@ -84,6 +93,8 @@ export default function LoanModal({ open, onClose, onSave, onDelete, editingLoan
       dueDay: dueDayNum,
       note,
     });
+    setSaving(false);
+    if (!ok) setError("Lưu thất bại — vui lòng kiểm tra kết nối mạng và thử lại.");
   }
 
   return (
@@ -242,24 +253,33 @@ export default function LoanModal({ open, onClose, onSave, onDelete, editingLoan
             )}
           </form>
 
-          <div className="px-5 pt-3 flex gap-2 flex-shrink-0" style={{ paddingBottom: "max(24px, env(safe-area-inset-bottom))" }}>
-            {isEditing && onDelete && (
-              <button
-                type="button"
-                onClick={onDelete}
-                className="flex items-center justify-center gap-1.5 px-4 py-3 rounded-2xl border border-red-200 dark:border-red-900 text-red-500 text-sm font-semibold"
-              >
-                <Trash2 size={15} />
-                Xoá
-              </button>
+          <div className="px-5 pt-3 flex-shrink-0" style={{ paddingBottom: "max(24px, env(safe-area-inset-bottom))" }}>
+            {error && (
+              <p className="text-xs font-semibold text-[#F44336] bg-red-50 dark:bg-red-950/30 rounded-xl px-3 py-2 mb-2">
+                {error}
+              </p>
             )}
-            <button
-              type="submit"
-              onClick={handleSubmit}
-              className="flex-1 bg-[#1E90FF] text-white font-bold py-3.5 rounded-2xl text-sm active:scale-[0.98] transition-all"
-            >
-              {isEditing ? "Cập nhật" : "Lưu khoản vay"}
-            </button>
+            <div className="flex gap-2">
+              {isEditing && onDelete && (
+                <button
+                  type="button"
+                  onClick={onDelete}
+                  disabled={saving}
+                  className="flex items-center justify-center gap-1.5 px-4 py-3 rounded-2xl border border-red-200 dark:border-red-900 text-red-500 text-sm font-semibold disabled:opacity-50"
+                >
+                  <Trash2 size={15} />
+                  Xoá
+                </button>
+              )}
+              <button
+                type="submit"
+                onClick={handleSubmit}
+                disabled={saving}
+                className="flex-1 bg-[#1E90FF] text-white font-bold py-3.5 rounded-2xl text-sm active:scale-[0.98] transition-all disabled:opacity-60"
+              >
+                {saving ? "Đang lưu..." : isEditing ? "Cập nhật" : "Lưu khoản vay"}
+              </button>
+            </div>
           </div>
         </div>
       </div>
