@@ -1,9 +1,25 @@
 "use client";
-import { useMemo, useState } from "react";
-import { Plus, Pencil, Check, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Plus, Pencil, Check, X, ChevronRight } from "lucide-react";
 import { useTx } from "@/components/AppShell";
 import { formatVND, formatVNDShort, getCurrentMonth } from "@/lib/formatters";
-import { updateBeepartnerTarget } from "@/lib/api";
+import { updateBeepartnerTarget, fetchBeDailyTargets } from "@/lib/api";
+import BeeWeekTargetModal from "@/components/BeeWeekTargetModal";
+import BeeFixedBudgetModal from "@/components/BeeFixedBudgetModal";
+
+function toISO(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function getWeekRange(today: Date): [string, string] {
+  const dow = today.getDay(); // 0=Sun..6=Sat
+  const mondayOffset = dow === 0 ? -6 : 1 - dow;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() + mondayOffset);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  return [toISO(monday), toISO(sunday)];
+}
 
 interface Props {
   month: string;
@@ -24,6 +40,19 @@ export default function BeepartnerWidget({ month }: Props) {
   const [editingTarget, setEditingTarget] = useState(false);
   const [targetInput, setTargetInput] = useState("");
   const [saving, setSaving] = useState(false);
+  const [weekModalOpen, setWeekModalOpen] = useState(false);
+  const [weekHasTargets, setWeekHasTargets] = useState<boolean | null>(null);
+  const [fixedBudgetModalOpen, setFixedBudgetModalOpen] = useState(false);
+
+  useEffect(() => {
+    const [start, end] = getWeekRange(new Date());
+    fetchBeDailyTargets(start, end).then((rows) => setWeekHasTargets(rows.length > 0));
+  }, []);
+
+  function refreshWeekTargets() {
+    const [start, end] = getWeekRange(new Date());
+    fetchBeDailyTargets(start, end).then((rows) => setWeekHasTargets(rows.length > 0));
+  }
 
   const beIncome = useMemo(
     () => transactions.filter((t) => t.category === "Be Income" && t.date.startsWith(month)),
@@ -204,6 +233,42 @@ export default function BeepartnerWidget({ month }: Props) {
           ) : null}
         </>
       )}
+
+      {/* Fixed income/expense → auto-calculated target entry point */}
+      <button
+        onClick={() => setFixedBudgetModalOpen(true)}
+        className="w-full mt-3 flex items-center justify-center gap-1 text-xs font-semibold text-gray-400 dark:text-gray-500 py-1"
+      >
+        📋 Thu chi cố định (tự tính target) <ChevronRight size={12} />
+      </button>
+
+      {/* Weekly daily targets entry point */}
+      {weekHasTargets === false ? (
+        <button
+          onClick={() => setWeekModalOpen(true)}
+          className="w-full mt-3 py-2.5 rounded-xl border border-dashed border-[#FFD700] text-yellow-600 dark:text-yellow-400 text-sm font-semibold active:opacity-80 hover:bg-[#FFD700]/5 transition-colors animate-pulse"
+        >
+          🎯 Mục tiêu tuần này
+        </button>
+      ) : weekHasTargets === true ? (
+        <button
+          onClick={() => setWeekModalOpen(true)}
+          className="w-full mt-3 flex items-center justify-center gap-1 text-xs font-semibold text-gray-400 dark:text-gray-500 py-1"
+        >
+          Xem mục tiêu tuần <ChevronRight size={12} />
+        </button>
+      ) : null}
+
+      <BeeWeekTargetModal
+        open={weekModalOpen}
+        onClose={() => setWeekModalOpen(false)}
+        onSaved={refreshWeekTargets}
+      />
+
+      <BeeFixedBudgetModal
+        open={fixedBudgetModalOpen}
+        onClose={() => setFixedBudgetModalOpen(false)}
+      />
     </div>
   );
 }

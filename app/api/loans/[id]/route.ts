@@ -10,8 +10,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!user) return NextResponse.json({ error: "Chưa đăng nhập" }, { status: 401 });
 
   const { id } = await params;
-  const { name, lenderType, principal, monthlyPayment, totalMonths, monthsPaid, startMonth, dueDay, note } = await req.json();
-  if (!name || !lenderType || !principal || !monthlyPayment || !totalMonths || !startMonth || !dueDay) {
+  const { name, lenderType, principal, monthlyPayment, totalMonths, monthsPaid, startMonth, dueDay, paidAmount, note } = await req.json();
+  const isPersonal = lenderType === "personal";
+  if (!name || !lenderType || !principal || !startMonth) {
+    return NextResponse.json({ error: "Thiếu thông tin bắt buộc" }, { status: 400 });
+  }
+  if (!isPersonal && (!monthlyPayment || !totalMonths || !dueDay)) {
     return NextResponse.json({ error: "Thiếu thông tin bắt buộc" }, { status: 400 });
   }
 
@@ -21,11 +25,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       name,
       lenderType,
       principal: Number(principal),
-      monthlyPayment: Number(monthlyPayment),
-      totalMonths: Number(totalMonths),
+      monthlyPayment: isPersonal ? null : Number(monthlyPayment),
+      totalMonths: isPersonal ? null : Number(totalMonths),
       monthsPaid: monthsPaid ? Number(monthsPaid) : 0,
       startMonth,
-      dueDay: Number(dueDay),
+      dueDay: isPersonal ? null : Number(dueDay),
+      paidAmount: paidAmount ? Number(paidAmount) : 0,
       note: note ?? "",
     })
     .where(and(eq(loans.id, id), eq(loans.userId, user.userId)))

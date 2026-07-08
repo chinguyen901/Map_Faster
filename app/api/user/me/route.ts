@@ -14,6 +14,7 @@ export async function GET() {
       phone: users.phone,
       bePartnerPhone: users.bePartnerPhone,
       bePartnerMonthlyTarget: users.bePartnerMonthlyTarget,
+      bePartnerSavingsBuffer: users.bePartnerSavingsBuffer,
     })
     .from(users)
     .where(eq(users.id, user.userId));
@@ -24,5 +25,6 @@ export async function GET() {
     phone: row.phone,
     bePartnerPhone: row.bePartnerPhone ?? null,
     bePartnerMonthlyTarget: row.bePartnerMonthlyTarget ?? null,
+    bePartnerSavingsBuffer: row.bePartnerSavingsBuffer ?? null,
   });
 }

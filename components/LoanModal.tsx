@@ -28,11 +28,13 @@ export default function LoanModal({ open, onClose, onSave, onDelete, editingLoan
   const [monthsPaid, setMonthsPaid] = useState("0");
   const [startMonth, setStartMonth] = useState(getCurrentMonth());
   const [dueDay, setDueDay] = useState("5");
+  const [paidAmount, setPaidAmount] = useState("");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   const isEditing = !!editingLoan;
+  const isPersonal = lenderType === "personal";
 
   useEffect(() => {
     if (!open) return;
@@ -42,11 +44,12 @@ export default function LoanModal({ open, onClose, onSave, onDelete, editingLoan
       setName(editingLoan.name);
       setLenderType(editingLoan.lenderType);
       setPrincipal(editingLoan.principal.toLocaleString("vi-VN"));
-      setMonthlyPayment(editingLoan.monthlyPayment.toLocaleString("vi-VN"));
-      setTotalMonths(String(editingLoan.totalMonths));
+      setMonthlyPayment(editingLoan.monthlyPayment != null ? editingLoan.monthlyPayment.toLocaleString("vi-VN") : "");
+      setTotalMonths(editingLoan.totalMonths != null ? String(editingLoan.totalMonths) : "");
       setMonthsPaid(String(editingLoan.monthsPaid));
       setStartMonth(editingLoan.startMonth);
-      setDueDay(String(editingLoan.dueDay));
+      setDueDay(editingLoan.dueDay != null ? String(editingLoan.dueDay) : "5");
+      setPaidAmount(editingLoan.paidAmount ? editingLoan.paidAmount.toLocaleString("vi-VN") : "");
       setNote(editingLoan.note);
     } else {
       setName("");
@@ -57,6 +60,7 @@ export default function LoanModal({ open, onClose, onSave, onDelete, editingLoan
       setMonthsPaid("0");
       setStartMonth(getCurrentMonth());
       setDueDay("5");
+      setPaidAmount("");
       setNote("");
     }
   }, [open, editingLoan]);
@@ -64,35 +68,54 @@ export default function LoanModal({ open, onClose, onSave, onDelete, editingLoan
   const principalNum = parseInt(principal.replace(/\D/g, ""), 10) || 0;
   const monthlyPaymentNum = parseInt(monthlyPayment.replace(/\D/g, ""), 10) || 0;
   const totalMonthsNum = parseInt(totalMonths, 10) || 0;
+  const paidAmountNum = parseInt(paidAmount.replace(/\D/g, ""), 10) || 0;
 
   const previewRate = useMemo(() => {
-    if (!principalNum || !monthlyPaymentNum || !totalMonthsNum) return null;
+    if (isPersonal || !principalNum || !monthlyPaymentNum || !totalMonthsNum) return null;
     return calcAnnualRate(principalNum, monthlyPaymentNum, totalMonthsNum);
-  }, [principalNum, monthlyPaymentNum, totalMonthsNum]);
+  }, [isPersonal, principalNum, monthlyPaymentNum, totalMonthsNum]);
 
   if (!open) return null;
 
   async function handleSubmit(e: React.SyntheticEvent) {
     e.preventDefault();
-    const dueDayNum = Math.min(31, Math.max(1, parseInt(dueDay, 10) || 1));
-    const monthsPaidNum = Math.max(0, parseInt(monthsPaid, 10) || 0);
-    if (!name || !principalNum || !monthlyPaymentNum || !totalMonthsNum || !startMonth) {
-      setError("Vui lòng điền đủ tên, số tiền vay, trả/tháng, tổng số tháng và tháng bắt đầu.");
+
+    if (!name || !principalNum || !startMonth) {
+      setError("Vui lòng điền đủ tên, số tiền vay và tháng bắt đầu.");
       return;
     }
+    if (!isPersonal && (!monthlyPaymentNum || !totalMonthsNum)) {
+      setError("Vui lòng điền đủ trả/tháng và tổng số tháng.");
+      return;
+    }
+
     setError("");
     setSaving(true);
-    const ok = await onSave({
-      name,
-      lenderType,
-      principal: principalNum,
-      monthlyPayment: monthlyPaymentNum,
-      totalMonths: totalMonthsNum,
-      monthsPaid: monthsPaidNum,
-      startMonth,
-      dueDay: dueDayNum,
-      note,
-    });
+    const ok = isPersonal
+      ? await onSave({
+          name,
+          lenderType,
+          principal: principalNum,
+          monthlyPayment: null,
+          totalMonths: null,
+          monthsPaid: 0,
+          startMonth,
+          dueDay: null,
+          paidAmount: paidAmountNum,
+          note,
+        })
+      : await onSave({
+          name,
+          lenderType,
+          principal: principalNum,
+          monthlyPayment: monthlyPaymentNum,
+          totalMonths: totalMonthsNum,
+          monthsPaid: Math.max(0, parseInt(monthsPaid, 10) || 0),
+          startMonth,
+          dueDay: Math.min(31, Math.max(1, parseInt(dueDay, 10) || 1)),
+          paidAmount: 0,
+          note,
+        });
     setSaving(false);
     if (!ok) setError("Lưu thất bại — vui lòng kiểm tra kết nối mạng và thử lại.");
   }
@@ -150,11 +173,18 @@ export default function LoanModal({ open, onClose, onSave, onDelete, editingLoan
                   </button>
                 ))}
               </div>
+              {isPersonal && (
+                <p className="text-[11px] text-gray-400 mt-1.5">
+                  Vay cá nhân không có lịch trả cố định — bạn ghi nhận số tiền trả mỗi lần, app tự tính còn nợ bao nhiêu.
+                </p>
+              )}
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className={isPersonal ? "" : "grid grid-cols-2 gap-3"}>
               <div>
-                <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Số tiền vay</label>
+                <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                  {isPersonal ? "Số tiền cho vay/đã vay" : "Số tiền vay"}
+                </label>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -165,19 +195,35 @@ export default function LoanModal({ open, onClose, onSave, onDelete, editingLoan
                   className="mt-1 w-full bg-gray-50 dark:bg-gray-800 dark:text-white rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-200"
                 />
               </div>
+              {!isPersonal && (
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Trả/tháng</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="0"
+                    value={monthlyPayment}
+                    onChange={(e) => setMonthlyPayment(parseAmountInput(e.target.value))}
+                    required
+                    className="mt-1 w-full bg-gray-50 dark:bg-gray-800 dark:text-white rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-200"
+                  />
+                </div>
+              )}
+            </div>
+
+            {isPersonal && (
               <div>
-                <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Trả/tháng</label>
+                <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Đã trả trước đó (nếu có)</label>
                 <input
                   type="text"
                   inputMode="numeric"
                   placeholder="0"
-                  value={monthlyPayment}
-                  onChange={(e) => setMonthlyPayment(parseAmountInput(e.target.value))}
-                  required
+                  value={paidAmount}
+                  onChange={(e) => setPaidAmount(parseAmountInput(e.target.value))}
                   className="mt-1 w-full bg-gray-50 dark:bg-gray-800 dark:text-white rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-200"
                 />
               </div>
-            </div>
+            )}
 
             {previewRate !== null && (
               <div className="bg-orange-50 dark:bg-orange-950/30 rounded-xl px-4 py-2.5 text-xs text-[#FF9800] font-semibold">
@@ -185,34 +231,63 @@ export default function LoanModal({ open, onClose, onSave, onDelete, editingLoan
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Tổng số tháng</label>
-                <input
-                  type="number"
-                  min={1}
-                  placeholder="VD: 24"
-                  value={totalMonths}
-                  onChange={(e) => setTotalMonths(e.target.value)}
-                  required
-                  className="mt-1 w-full bg-gray-50 dark:bg-gray-800 dark:text-white rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-200"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Đã trả (tháng)</label>
-                <input
-                  type="number"
-                  min={0}
-                  value={monthsPaid}
-                  onChange={(e) => setMonthsPaid(e.target.value)}
-                  className="mt-1 w-full bg-gray-50 dark:bg-gray-800 dark:text-white rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-200"
-                />
-              </div>
-            </div>
+            {!isPersonal && (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Tổng số tháng</label>
+                    <input
+                      type="number"
+                      min={1}
+                      placeholder="VD: 24"
+                      value={totalMonths}
+                      onChange={(e) => setTotalMonths(e.target.value)}
+                      required
+                      className="mt-1 w-full bg-gray-50 dark:bg-gray-800 dark:text-white rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-200"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Đã trả (tháng)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={monthsPaid}
+                      onChange={(e) => setMonthsPaid(e.target.value)}
+                      className="mt-1 w-full bg-gray-50 dark:bg-gray-800 dark:text-white rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-200"
+                    />
+                  </div>
+                </div>
 
-            <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Tháng bắt đầu</label>
+                    <input
+                      type="month"
+                      value={startMonth}
+                      onChange={(e) => setStartMonth(e.target.value)}
+                      required
+                      className="mt-1 w-full bg-gray-50 dark:bg-gray-800 dark:text-white rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-200"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Ngày trả/tháng</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={31}
+                      value={dueDay}
+                      onChange={(e) => setDueDay(e.target.value)}
+                      required
+                      className="mt-1 w-full bg-gray-50 dark:bg-gray-800 dark:text-white rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-200"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
+            {isPersonal && (
               <div>
-                <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Tháng bắt đầu</label>
+                <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Tháng vay</label>
                 <input
                   type="month"
                   value={startMonth}
@@ -221,19 +296,7 @@ export default function LoanModal({ open, onClose, onSave, onDelete, editingLoan
                   className="mt-1 w-full bg-gray-50 dark:bg-gray-800 dark:text-white rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-200"
                 />
               </div>
-              <div>
-                <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Ngày trả/tháng</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={31}
-                  value={dueDay}
-                  onChange={(e) => setDueDay(e.target.value)}
-                  required
-                  className="mt-1 w-full bg-gray-50 dark:bg-gray-800 dark:text-white rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-200"
-                />
-              </div>
-            </div>
+            )}
 
             <div>
               <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Ghi chú</label>
@@ -246,9 +309,14 @@ export default function LoanModal({ open, onClose, onSave, onDelete, editingLoan
               />
             </div>
 
-            {principalNum > 0 && monthlyPaymentNum > 0 && totalMonthsNum > 0 && (
+            {!isPersonal && principalNum > 0 && monthlyPaymentNum > 0 && totalMonthsNum > 0 && (
               <p className="text-xs text-gray-400">
                 Tổng phải trả: {formatVND(monthlyPaymentNum * totalMonthsNum)}
+              </p>
+            )}
+            {isPersonal && principalNum > 0 && (
+              <p className="text-xs text-gray-400">
+                Còn nợ: {formatVND(Math.max(0, principalNum - paidAmountNum))}
               </p>
             )}
           </form>

@@ -4,6 +4,7 @@ import { TrendingUp, TrendingDown, ChevronLeft, ChevronRight } from "lucide-reac
 import AppShell, { useTx } from "@/components/AppShell";
 import TransactionItem from "@/components/TransactionItem";
 import LoanSummaryWidget from "@/components/LoanSummaryWidget";
+import AllowanceWidget from "@/components/AllowanceWidget";
 import BeepartnerWidget from "@/components/BeepartnerWidget";
 import { calcMonthSummary } from "@/lib/calculations";
 import { formatVND, formatVNDShort, formatMonth, getCurrentMonth, getTodayISO } from "@/lib/formatters";
@@ -230,6 +231,9 @@ function HomeContent() {
 
         {/* Loan summary widget */}
         <LoanSummaryWidget />
+
+        {/* Phụ cấp quick-add widget */}
+        <AllowanceWidget month={month} />
 
         {/* Beepartner income widget */}
         <BeepartnerWidget month={month} />

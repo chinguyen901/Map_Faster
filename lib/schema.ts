@@ -8,6 +8,7 @@ export const users = pgTable("users", {
   isVerified: boolean("is_verified").default(false).notNull(),
   bePartnerPhone: varchar("be_partner_phone", { length: 20 }),
   bePartnerMonthlyTarget: bigint("be_partner_monthly_target", { mode: "number" }),
+  bePartnerSavingsBuffer: bigint("be_partner_savings_buffer", { mode: "number" }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -43,11 +44,12 @@ export const loans = pgTable("loans", {
   name: varchar("name", { length: 100 }).notNull(),
   lenderType: varchar("lender_type", { length: 30 }).notNull(),
   principal: bigint("principal", { mode: "number" }).notNull(),
-  monthlyPayment: bigint("monthly_payment", { mode: "number" }).notNull(),
-  totalMonths: integer("total_months").notNull(),
+  monthlyPayment: bigint("monthly_payment", { mode: "number" }),
+  totalMonths: integer("total_months"),
   monthsPaid: integer("months_paid").default(0).notNull(),
   startMonth: varchar("start_month", { length: 7 }).notNull(),
-  dueDay: integer("due_day").notNull(),
+  dueDay: integer("due_day"),
+  paidAmount: bigint("paid_amount", { mode: "number" }).default(0).notNull(),
   note: text("note").default("").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -63,6 +65,27 @@ export const budgets = pgTable("budgets", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const beDailyTargets = pgTable("be_daily_targets", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  date: date("date").notNull(),
+  targetAmount: bigint("target_amount", { mode: "number" }).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const beeFixedItems = pgTable("bee_fixed_items", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  type: varchar("type", { length: 10 }).notNull(), // 'income' | 'expense'
+  name: varchar("name", { length: 100 }).notNull(),
+  amount: bigint("amount", { mode: "number" }).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type OtpCode = typeof otpCodes.$inferSelect;
@@ -71,3 +94,5 @@ export type NewTransaction = typeof transactions.$inferInsert;
 export type Budget = typeof budgets.$inferSelect;
 export type Loan = typeof loans.$inferSelect;
 export type NewLoan = typeof loans.$inferInsert;
+export type BeDailyTarget = typeof beDailyTargets.$inferSelect;
+export type BeeFixedItem = typeof beeFixedItems.$inferSelect;

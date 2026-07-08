@@ -32,6 +32,7 @@ export const EXPENSE_CATEGORIES = [
   { name: "Y tế", icon: "💊", color: "#FFEAA7" },
   { name: "Hoá đơn", icon: "📱", color: "#DDA0DD" },
   { name: "Giáo dục", icon: "📚", color: "#98D8C8" },
+  { name: "Trả nợ", icon: "💸", color: "#9C6ADE" },
   { name: "Khác", icon: "💰", color: "#B0B0B0" },
 ] as const;
 
@@ -59,11 +60,12 @@ export interface Loan {
   name: string;
   lenderType: LenderType;
   principal: number;
-  monthlyPayment: number;
-  totalMonths: number;
+  monthlyPayment: number | null;
+  totalMonths: number | null;
   monthsPaid: number;
   startMonth: string; // YYYY-MM
-  dueDay: number;
+  dueDay: number | null;
+  paidAmount: number;
   note: string;
   createdAt: string;
 }
@@ -74,3 +76,18 @@ export const LENDER_TYPES = [
   { value: "personal" as LenderType, label: "Vay cá nhân", icon: "👤" },
   { value: "other" as LenderType, label: "Khác", icon: "📝" },
 ] as const;
+
+export interface BeDailyTarget {
+  id: string;
+  date: string; // YYYY-MM-DD
+  targetAmount: number;
+  createdAt: string;
+}
+
+export interface BeeFixedItem {
+  id: string;
+  type: "income" | "expense";
+  name: string;
+  amount: number;
+  createdAt: string;
+}

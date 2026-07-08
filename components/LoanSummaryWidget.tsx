@@ -3,7 +3,7 @@ import { useEffect, useState, useMemo } from "react";
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { fetchLoans } from "@/lib/api";
-import { calcDueThisMonthTotal } from "@/lib/calculations";
+import { calcDueThisMonthTotal, isLoanActive } from "@/lib/calculations";
 import { formatVND } from "@/lib/formatters";
 import { Loan } from "@/types";
 
@@ -14,7 +14,7 @@ export default function LoanSummaryWidget() {
     fetchLoans().then(setLoans);
   }, []);
 
-  const activeLoans = useMemo(() => loans.filter((l) => l.monthsPaid < l.totalMonths), [loans]);
+  const activeLoans = useMemo(() => loans.filter(isLoanActive), [loans]);
   const dueThisMonth = useMemo(() => calcDueThisMonthTotal(loans), [loans]);
 
   if (activeLoans.length === 0) return null;

@@ -16,9 +16,12 @@ interface TxContextType {
   deleteById: (id: string) => void;
   openEditModal: (tx: Transaction) => void;
   openAddModal: (defaults?: ModalDefaults) => void;
+  recordTransaction: (data: { type: TransactionType; category: string; amount: number; note: string; date: string }) => Promise<Transaction | null>;
   bePartnerPhone: string | null;
   bePartnerMonthlyTarget: number | null;
   setBePartnerMonthlyTarget: (target: number | null) => void;
+  bePartnerSavingsBuffer: number | null;
+  setBePartnerSavingsBuffer: (buffer: number | null) => void;
 }
 
 export const TxContext = createContext<TxContextType>({
@@ -27,9 +30,12 @@ export const TxContext = createContext<TxContextType>({
   deleteById: () => {},
   openEditModal: () => {},
   openAddModal: () => {},
+  recordTransaction: async () => null,
   bePartnerPhone: null,
   bePartnerMonthlyTarget: null,
   setBePartnerMonthlyTarget: () => {},
+  bePartnerSavingsBuffer: null,
+  setBePartnerSavingsBuffer: () => {},
 });
 export const useTx = () => useContext(TxContext);
 
@@ -41,12 +47,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [modalDefaults, setModalDefaults] = useState<ModalDefaults>({});
   const [bePartnerPhone, setBePartnerPhone] = useState<string | null>(null);
   const [bePartnerMonthlyTarget, setBePartnerMonthlyTarget] = useState<number | null>(null);
+  const [bePartnerSavingsBuffer, setBePartnerSavingsBuffer] = useState<number | null>(null);
 
   useEffect(() => {
     fetchUserProfile().then((profile) => {
       if (profile) {
         setBePartnerPhone(profile.bePartnerPhone);
         setBePartnerMonthlyTarget(profile.bePartnerMonthlyTarget);
+        setBePartnerSavingsBuffer(profile.bePartnerSavingsBuffer);
       }
     });
     fetchTransactions().then((data) => {
@@ -91,8 +99,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     if (ok) setTransactions((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
+  // For flows outside the add/edit modal (e.g. auto-logging an expense when a loan payment is
+  // confirmed) that need to silently create a transaction and keep it in sync everywhere.
+  const recordTransaction = useCallback(
+    async (data: { type: TransactionType; category: string; amount: number; note: string; date: string }) => {
+      const created = await createTransaction(data);
+      if (created) setTransactions((prev) => [created, ...prev]);
+      return created;
+    },
+    []
+  );
+
   return (
-    <TxContext.Provider value={{ transactions, loading, deleteById, openEditModal, openAddModal, bePartnerPhone, bePartnerMonthlyTarget, setBePartnerMonthlyTarget }}>
+    <TxContext.Provider value={{ transactions, loading, deleteById, openEditModal, openAddModal, recordTransaction, bePartnerPhone, bePartnerMonthlyTarget, setBePartnerMonthlyTarget, bePartnerSavingsBuffer, setBePartnerSavingsBuffer }}>
       <div className="safe-bottom">{children}</div>
       <BottomNav onAddClick={() => openAddModal()} />
       <TransactionModal

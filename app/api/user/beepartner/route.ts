@@ -25,12 +25,18 @@ export async function PATCH(req: NextRequest) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Chưa đăng nhập" }, { status: 401 });
 
-  const { monthlyTarget } = await req.json();
-  const target = monthlyTarget != null ? Number(monthlyTarget) : null;
+  const body = await req.json();
+  const updates: { bePartnerMonthlyTarget?: number | null; bePartnerSavingsBuffer?: number | null } = {};
+  if ("monthlyTarget" in body) {
+    updates.bePartnerMonthlyTarget = body.monthlyTarget != null ? Number(body.monthlyTarget) : null;
+  }
+  if ("savingsBuffer" in body) {
+    updates.bePartnerSavingsBuffer = body.savingsBuffer != null ? Number(body.savingsBuffer) : null;
+  }
 
-  await db.update(users).set({ bePartnerMonthlyTarget: target }).where(eq(users.id, user.userId));
+  await db.update(users).set(updates).where(eq(users.id, user.userId));
 
-  return NextResponse.json({ success: true, monthlyTarget: target });
+  return NextResponse.json({ success: true, ...updates });
 }
 
 export async function DELETE() {

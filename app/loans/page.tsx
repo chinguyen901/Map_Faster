@@ -2,15 +2,16 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { ChevronLeft, Plus } from "lucide-react";
 import Link from "next/link";
-import AppShell from "@/components/AppShell";
+import AppShell, { useTx } from "@/components/AppShell";
 import LoanItem from "@/components/LoanItem";
 import LoanModal from "@/components/LoanModal";
 import { fetchLoans, createLoan, updateLoan, deleteLoanById, confirmLoanPayment } from "@/lib/api";
 import { calcDueThisMonthTotal } from "@/lib/calculations";
-import { formatVND } from "@/lib/formatters";
+import { formatVND, getTodayISO } from "@/lib/formatters";
 import { Loan } from "@/types";
 
 function LoansContent() {
+  const { recordTransaction } = useTx();
   const [loans, setLoans] = useState<Loan[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -57,10 +58,24 @@ function LoansContent() {
     setEditingLoan(null);
   }, []);
 
-  const handleConfirmPay = useCallback(async (id: string) => {
-    const updated = await confirmLoanPayment(id);
-    if (updated) setLoans((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
-  }, []);
+  const handleConfirmPay = useCallback(async (id: string, amount?: number) => {
+    const loan = loans.find((l) => l.id === id);
+    if (!loan) return;
+    const updated = await confirmLoanPayment(id, amount);
+    if (!updated) return;
+    setLoans((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
+
+    const paidAmount = amount ?? loan.monthlyPayment ?? 0;
+    if (paidAmount > 0) {
+      recordTransaction({
+        type: "expense",
+        category: "Trả nợ",
+        amount: paidAmount,
+        note: `Trả nợ: ${loan.name}`,
+        date: getTodayISO(),
+      });
+    }
+  }, [loans, recordTransaction]);
 
   return (
     <div className="min-h-screen bg-[#F0F8FF] dark:bg-[#0D1117]">

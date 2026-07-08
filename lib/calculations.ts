@@ -82,10 +82,16 @@ export function calcRemainingBalance(
   return Math.round(Math.max(principal * factor - monthlyPayment * ((factor - 1) / r), 0));
 }
 
+// Personal/flexible loans have no fixed schedule (no totalMonths/dueDay) — they're tracked by
+// paidAmount instead and never have a "due this month" concept.
 export function calcLoanStatus(loan: Loan): {
   nextDueMonth: string;
   status: "due" | "overdue" | "paid_off" | "upcoming";
 } {
+  if (loan.lenderType === "personal" || loan.totalMonths == null) {
+    return { nextDueMonth: "", status: loan.paidAmount >= loan.principal ? "paid_off" : "upcoming" };
+  }
+
   if (loan.monthsPaid >= loan.totalMonths) {
     return { nextDueMonth: "", status: "paid_off" };
   }
@@ -103,12 +109,55 @@ export function calcLoanStatus(loan: Loan): {
 }
 
 // Sum of monthly payments for loans not yet confirmed this cycle (due or overdue).
-// Drives both the /loans header and the home-page widget total.
+// Drives both the /loans header and the home-page widget total. Personal loans have no fixed
+// monthly due date, so they never contribute here.
 export function calcDueThisMonthTotal(loans: Loan[]): number {
   return loans
     .filter((l) => {
+      if (l.lenderType === "personal") return false;
       const { status } = calcLoanStatus(l);
       return status === "due" || status === "overdue";
     })
-    .reduce((sum, l) => sum + l.monthlyPayment, 0);
+    .reduce((sum, l) => sum + (l.monthlyPayment ?? 0), 0);
+}
+
+// Not fully paid off yet — personal loans compare paidAmount to principal, fixed-schedule
+// loans compare monthsPaid to totalMonths.
+export function isLoanActive(loan: Loan): boolean {
+  if (loan.lenderType === "personal" || loan.totalMonths == null) {
+    return loan.paidAmount < loan.principal;
+  }
+  return loan.monthsPaid < loan.totalMonths;
+}
+
+// --- Beepartner ---
+
+// Suggested Bee income target for a given day: what's still left of the monthly target
+// (after subtracting what's already been earned this month), spread over the days remaining —
+// not a flat monthlyTarget/daysInMonth split. So if you're behind pace, the daily suggestion
+// rises; if you're ahead, it falls. For a date outside the current month (e.g. a week that
+// spans a month boundary), nothing's been earned "so far" in that month yet, so this reduces
+// to monthlyTarget / days in that month.
+export function calcBeeSuggestedDailyTarget(
+  monthlyTarget: number,
+  transactions: Transaction[],
+  dateStr: string
+): number {
+  const [y, m] = dateStr.split("-").map(Number);
+  const month = `${y}-${String(m).padStart(2, "0")}`;
+  const daysInThatMonth = new Date(y, m, 0).getDate();
+
+  const today = new Date();
+  const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+
+  const earned = transactions
+    .filter((t) => t.category === "Be Income" && t.date.startsWith(month))
+    .reduce((sum, t) => sum + t.amount, 0);
+  const remaining = Math.max(0, monthlyTarget - earned);
+
+  const daysLeft = month === currentMonth
+    ? Math.max(1, daysInThatMonth - today.getDate() + 1)
+    : daysInThatMonth;
+
+  return Math.round(remaining / daysLeft / 1000) * 1000;
 }
